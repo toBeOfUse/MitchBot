@@ -116,13 +116,13 @@ hello!
     let es = new EventSocket('ws://'+window.location.host+'/socket');
 
     es.setEventHandler('set-state', (state) => {
-        if(state.current_voice){
+        if("current_voice" in state){
             document.querySelector('#currentvoice').innerHTML = state.current_voice;
         }
-        if(state.currently_playing){
+        if("currently_playing" in state){
             document.querySelector('#currentlyplaying').innerHTML = state.currently_playing;
         }
-        if(state.text_channels){
+        if("text_channels" in state){
             document.querySelector('#tchannels').innerHTML = "";
             for (const c of state.text_channels) {
                     const o = document.createElement('option');
@@ -131,7 +131,7 @@ hello!
                 document.querySelector('#tchannels').appendChild(o);
             }
         }
-        if(state.voice_channels){
+        if("voice_channels" in state){
             document.querySelector('#vchannels').innerHTML = "";
             let connected = false;
             for (const c of state.voice_channels) {
@@ -153,7 +153,7 @@ hello!
                 document.querySelector('#manualTTS').style.opacity = "1";
             }
         }
-        if(state.prompts){
+        if("prompts" in state){
             document.querySelector('#prompt-list').innerHTML = "";
             for (const group of state.prompts) {
                 let groupHTML = [];
