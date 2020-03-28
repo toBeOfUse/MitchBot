@@ -1,6 +1,7 @@
 <html>
 <head>
     <title>mitchbot switchboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         html {
             font-family: sans-serif;
@@ -9,13 +10,19 @@
             display: block;
             margin-top: 15px;
             margin-bottom: 15px;
+            font-size: medium;
         }
         a:visited {
             color: blue;
         }
         textarea {
             height: 100px;
-            width: 200px;
+            width: 100%;
+            max-width: 400px;
+        }
+        button {
+            height: fit-content;
+            margin: 8px;
         }
         select {
             display: block;
@@ -24,6 +31,18 @@
         .cont {
             margin-top: 30px;
             margin-bottom: 30px;
+        }
+        .textbox {
+            display: flex;
+            align-items: center;
+        }
+        #currentlyplaying {
+            width: 100%;
+            max-width: 400px;
+            height: 100px;
+            border: solid thin black;
+            margin: 5px;
+            padding: 5px;
         }
     </style>
     <link rel="icon" href="/favicon.jpg" type="image/jpeg" />
@@ -35,8 +54,10 @@ hello!
     <h3>text channels:</h3>
     <select id="tchannels">
     </select>
-    <textarea id="textmessage" placeholder="send message..."></textarea>
-    <button type="submit" onclick="textMessageButton(event);">go!</button>
+    <div class="textbox">
+        <textarea id="textmessage" placeholder="send message..."></textarea>
+        <button type="submit" onclick="textMessageButton(event);">go!</button>
+    </div>
 </form>
 <h2>voice chatting</h2>
 <button type="submit" onclick="interruptButton()">interrupt current audio</button>
@@ -49,12 +70,13 @@ hello!
 <h3>current voice:</h3>
 <div id="currentvoice"></div><button type="submit" onclick="switchVoice()">switch voice</button>
 <h3>currently playing:</h3>
-<div id="currentlyplaying" style="height:60px;border:solid thin black;width:80%;margin:5px;padding:5px;"></div>
+<div id="currentlyplaying"></div>
 <form class="cont" id="manualTTS">
     <h3>custom tts:</h3>
-    <textarea style="opacity:1;" id="ttsCont" placeholder="enter your text for mitchbot to speak"></textarea>
-    <button type="submit" onclick="ttsButton(event)">go!</button>
-    <button style="opacity:1;" type="submit" onclick="saveButton(event)">save</button>
+    <div class="textbox">
+        <textarea style="opacity:1;" id="ttsCont" placeholder="enter your text for mitchbot to speak"></textarea>
+        <button type="submit" onclick="ttsButton(event)">go!</button>
+    </div>
 </form>
 <div class="cont" id="prompts">
     <h3>default tts prompts:</h3>
@@ -168,18 +190,6 @@ hello!
             return;
         }
         tts(text);
-        document.querySelector('#ttsCont').value = "";
-    }
-    function saveButton(e){
-        e.preventDefault();
-        const text = document.querySelector('#ttsCont').value;
-        if(!text.trim()){
-            return;
-        }
-        const a = document.createElement('a');
-        a.setAttribute('href', 'javascript:void(0)');
-        a.innerHTML = text;
-        document.querySelector('#prompts').querySelector('div').prepend(a);
         document.querySelector('#ttsCont').value = "";
     }
     function stopButton(e){
