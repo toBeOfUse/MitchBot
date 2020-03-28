@@ -1,0 +1,195 @@
+<html>
+<head>
+    <title>mitchbot switchboard</title>
+    <style>
+        html {
+            font-family: sans-serif;
+        }
+        a {
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+        a:visited {
+            color: blue;
+        }
+        textarea {
+            height: 100px;
+            width: 200px;
+        }
+        select {
+            display: block;
+            margin-bottom: 15px;
+        }
+        .cont {
+            margin-top: 30px;
+            margin-bottom: 30px;
+        }
+    </style>
+    <link rel="icon" href="/favicon.jpg" type="image/jpeg" />
+</head>
+<body>
+hello!
+<form class="cont">
+    <h2>messaging</h2>
+    <h3>text channels:</h3>
+    <select id="tchannels">
+    </select>
+    <textarea id="textmessage" placeholder="send message..."></textarea>
+    <button type="submit" onclick="textMessageButton(event);">go!</button>
+</form>
+<h2>voice chatting</h2>
+<button type="submit" onclick="interruptButton()">interrupt current audio</button>
+<div class="cont">
+    <h3>voice channels in joined servers:</h3>
+    <div id="vchannels" onclick="connectToVC(event.target.getAttribute('data-id'));">
+
+    </div>
+</div>
+<h3>current voice:</h3>
+<div id="currentvoice"></div><button type="submit" onclick="switchVoice()">switch voice</button>
+<h3>currently playing:</h3>
+<div id="currentlyplaying" style="height:60px;border:solid thin black;width:80%;margin:5px;padding:5px;"></div>
+<form class="cont" id="manualTTS">
+    <h3>custom tts:</h3>
+    <textarea style="opacity:1;" id="ttsCont" placeholder="enter your text for mitchbot to speak"></textarea>
+    <button type="submit" onclick="ttsButton(event)">go!</button>
+    <button style="opacity:1;" type="submit" onclick="saveButton(event)">save</button>
+</form>
+<div class="cont" id="prompts">
+    <h3>default tts prompts:</h3>
+    <div id="prompt-list" onclick="event.preventDefault(); if(event.target.tagName=='A'){ tts(event.target.innerText);}"></div>
+    <h3>music folder:</h3>
+    <div onclick="event.preventDefault(); startSong(event.target.innerText);">
+        <a href>american pie</a>
+        <a href>gallifrey</a>
+        <a href>SM64 - Ending</a>
+        <a href>Tom and Jerry</a>
+        <a href>satie gymnopedie no1</a>
+        <a href>satie gymnopedie no2</a>
+    </div>
+</div>
+<br>
+<button class="cont" type="submit" onclick="stopButton(event)">turn bot off</button>
+<script>
+    function EventSocket(url){
+        this.ws = new WebSocket(url);
+        this.handlers = {};
+        this.setEventHandler = (eventName, f) => {
+            this.handlers[eventName] = f;
+        }
+        this.emit = (eventName, details) => {
+            this.ws.send(JSON.stringify({event: eventName, details: details}));
+        }
+        this.ws.onmessage = (e) => {
+            e = JSON.parse(e.data);
+            if(this.handlers[e.event]){
+                this.handlers[e.event](e.details);
+            }else{
+                console.log('received', e.event, 'event with no handler associated');
+            }
+        }
+        this.ws.onopen = () => { console.log('websocket connected!') }
+    }
+    let es = new EventSocket('ws://'+window.location.host+'/socket');
+
+    es.setEventHandler('set-state', (state) => {
+        document.querySelector('#currentvoice').innerHTML = state.current_voice;
+        document.querySelector('#currentlyplaying').innerHTML = state.currently_playing;
+        document.querySelector('#tchannels').innerHTML = "";
+        for (const c of state.text_channels) {
+                const o = document.createElement('option');
+            o.innerHTML = c[0]+": "+c[1];
+            o.setAttribute('value', c[2]);
+            document.querySelector('#tchannels').appendChild(o);
+        }
+        document.querySelector('#vchannels').innerHTML = "";
+        let connected = false;
+        for (const c of state.voice_channels) {
+            const a = document.createElement('a');
+            a.setAttribute('href', 'javascript:void(0)');
+            a.innerHTML = c[0]+": "+c[1];
+            a.setAttribute('data-id', c[2]);
+            if(c[3]){
+                connected = true;
+                a.innerHTML += " (connected)";
+            }
+            document.querySelector('#vchannels').appendChild(a);
+        }
+        if(!connected){
+            document.querySelector('#prompts').style.opacity = "0.25";
+            document.querySelector('#manualTTS').style.opacity = "0.25";
+        }else{
+            document.querySelector('#prompts').style.opacity = "1";
+            document.querySelector('#manualTTS').style.opacity = "1";
+        }
+        document.querySelector('#prompt-list').innerHTML = "";
+        for (const group of state.prompts) {
+            let groupHTML = [];
+            for (const prompt of group){
+                const a = document.createElement('a');
+                a.setAttribute('href', 'javascript:void(0)');
+                a.style.display = "inline";
+                a.innerHTML = prompt;
+                groupHTML.push(a.outerHTML);
+            }
+            document.querySelector('#prompt-list').innerHTML += groupHTML.join(' - ');
+            groupHTML = "";
+            document.querySelector('#prompt-list').innerHTML += "<br><br>";
+        }
+    });
+
+    function interruptButton(){
+        es.emit('interrupt');
+    }
+    function switchVoice(){
+        es.emit('switch_voice');
+    }
+    function tts(text){
+        es.emit('say', {text});
+    }
+    function startSong(text){
+        es.emit('start_song', {song: text});
+    }
+    function ttsButton(e){
+        e.preventDefault();
+        const text = document.querySelector('#ttsCont').value;
+        if(!text.trim()){
+            return;
+        }
+        tts(text);
+        document.querySelector('#ttsCont').value = "";
+    }
+    function saveButton(e){
+        e.preventDefault();
+        const text = document.querySelector('#ttsCont').value;
+        if(!text.trim()){
+            return;
+        }
+        const a = document.createElement('a');
+        a.setAttribute('href', 'javascript:void(0)');
+        a.innerHTML = text;
+        document.querySelector('#prompts').querySelector('div').prepend(a);
+        document.querySelector('#ttsCont').value = "";
+    }
+    function stopButton(e){
+        e.preventDefault();
+        es.emit('turn_off');
+    }
+    function textMessageButton(e){
+        e.preventDefault();
+        const message = document.querySelector('#textmessage').value;
+        if(!message.trim()){
+            return;
+        }
+        const channels = document.querySelector('#tchannels');
+        const selectedChannel = channels.options[channels.selectedIndex].value;
+        es.emit('send_message', {channel_id: selectedChannel, message});
+        document.querySelector('#textmessage').value = "";
+    }
+    function connectToVC(id){
+        es.emit('vc_connect', {channel_id: id});
+    }
+</script>
+</body>
+</html>
