@@ -11,6 +11,7 @@
             margin-top: 15px;
             margin-bottom: 15px;
             font-size: medium;
+            cursor: pointer;
         }
         a:visited {
             color: blue;
@@ -79,8 +80,8 @@ hello!
     </div>
 </form>
 <div class="cont" id="prompts">
-    <h3>default tts prompts:</h3>
-    <div id="prompt-list" onclick="event.preventDefault(); if(event.target.tagName=='A'){ tts(event.target.innerText);}"></div>
+    <h3>default tts prompts (<a style="display:inline;" href onclick="event.preventDefault();editPrompts(event);">edit</a>):</h3>
+    <div id="prompt-list" onclick="event.preventDefault(); if(event.target.tagName=='A' && !this.getAttribute('contenteditable')){ tts(event.target.innerText);}"></div>
     <h3>music folder:</h3>
     <div onclick="event.preventDefault(); startSong(event.target.innerText);">
         <a href>american pie</a>
@@ -154,23 +155,48 @@ hello!
             }
         }
         if("prompts" in state){
-            document.querySelector('#prompt-list').innerHTML = "";
-            for (const group of state.prompts) {
-                let groupHTML = [];
-                for (const prompt of group){
-                    const a = document.createElement('a');
-                    a.setAttribute('href', 'javascript:void(0)');
-                    a.style.display = "inline";
-                    a.innerHTML = prompt;
-                    groupHTML.push(a.outerHTML);
-                }
-                document.querySelector('#prompt-list').innerHTML += groupHTML.join(' - ');
-                groupHTML = "";
-                document.querySelector('#prompt-list').innerHTML += "<br><br>";
-            }
+            renderPrompts(state.prompts);
         }
     });
-
+    function renderPrompts(promptsList){
+        document.querySelector('#prompt-list').innerHTML = "";
+        for (const group of promptsList) {
+            let groupHTML = [];
+            for (const prompt of group){
+                const a = document.createElement('a');
+                a.setAttribute('href', 'javascript:void(0)');
+                a.style.display = "inline";
+                a.innerHTML = prompt.trim();
+                groupHTML.push(a.outerHTML);
+            }
+            document.querySelector('#prompt-list').innerHTML += '<p>' + groupHTML.join(' - ') + '</p>';
+            groupHTML = "";
+        }
+    }
+    function editPrompts(e){
+        const list = document.querySelector('#prompt-list')
+        if (e.target._editing){
+            e.target.innerHTML = "edit";
+            e.target._editing = false;
+            list.setAttribute('contenteditable', false);
+            const groups = list.innerText.split(/\n+/g).map(g=>g.trim());
+            const prompts = [];
+            groups.map(g=>{prompts.push(g.split('-').map(p=>p.trim()));});
+            console.log(prompts);
+            es.emit('new-prompts', prompts);
+        }else{
+            e.target.innerHTML = "save";
+            e.target._editing = true;
+            list.setAttribute('contenteditable', true);
+            list.innerHTML = list.innerText.replace(/\n/g, '<br>');
+            list.focus();
+        }
+    }
+    function savePrompts(){
+        const list = document.querySelector('#prompt-list')
+        list.setAttribute('contenteditable', false);
+        list.removeEventListener('input', promptsFromEditor);
+    }
     function interruptButton(){
         es.emit('interrupt');
     }

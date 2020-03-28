@@ -116,6 +116,14 @@ async def send_message(connection, details):
 async def start_song(connection, details):
     await discord_client.start_playing('music/' + details['song'] + ".mp3", details['song'])
 
+@WebSocketEventHandler.on_event('new-prompts')
+def new_prompts(connection, details):
+    prompts_string = '\n\n'.join([' - '.join(x) for x in details])
+    txt = open('prompts.txt', 'w')
+    txt.write(prompts_string)
+    txt.close()
+    discord_client.public_state['prompts'] = details
+
 
 static = os.path.join(os.getcwd(), "static\\")
 server = tornado.web.Application([

@@ -82,9 +82,9 @@ class MitchClient(discord.Client):
         self.public_state['voice_channels'] = self.get_voice_channels()
         prompts = open('prompts.txt', 'r')
         text = prompts.read()
-        groups = text.split('\n\n')
+        groups = text.split('\n')
         prompts.close()
-        self.public_state['prompts'] = [x.split('\n') for x in groups]
+        self.public_state['prompts'] = [x.split('-') for x in groups]
 
     # todo: make this less than 10 billion lines long
     async def on_message(self, message):

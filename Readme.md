@@ -26,7 +26,7 @@ MitchBot responds to the following commands if you @-mention it:
 - @MitchBot make @someone and @someone fight
 - @MitchBot kiss (only works if no one else is mentioned; asking MitchBot to kiss other people will not work)
 - @MitchBot *when* was i *born*/what is *my* *age* (checks for either pair of the italicized keywords)
-- @MitchBot *what day* is it (again, keywords italicized
+- @MitchBot *what day* is it (again, keywords italicized)
 - @MitchBot emoji "emoji_name" \`emoji_url\` (instead of providing a url, the user can upload an image)
 - @MitchBot nickname
 
