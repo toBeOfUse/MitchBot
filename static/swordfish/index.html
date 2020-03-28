@@ -94,48 +94,58 @@ hello!
     let es = new EventSocket('ws://'+window.location.host+'/socket');
 
     es.setEventHandler('set-state', (state) => {
-        document.querySelector('#currentvoice').innerHTML = state.current_voice;
-        document.querySelector('#currentlyplaying').innerHTML = state.currently_playing;
-        document.querySelector('#tchannels').innerHTML = "";
-        for (const c of state.text_channels) {
-                const o = document.createElement('option');
-            o.innerHTML = c[0]+": "+c[1];
-            o.setAttribute('value', c[2]);
-            document.querySelector('#tchannels').appendChild(o);
+        if(state.current_voice){
+            document.querySelector('#currentvoice').innerHTML = state.current_voice;
         }
-        document.querySelector('#vchannels').innerHTML = "";
-        let connected = false;
-        for (const c of state.voice_channels) {
-            const a = document.createElement('a');
-            a.setAttribute('href', 'javascript:void(0)');
-            a.innerHTML = c[0]+": "+c[1];
-            a.setAttribute('data-id', c[2]);
-            if(c[3]){
-                connected = true;
-                a.innerHTML += " (connected)";
+        if(state.currently_playing){
+            document.querySelector('#currentlyplaying').innerHTML = state.currently_playing;
+        }
+        if(state.text_channels){
+            document.querySelector('#tchannels').innerHTML = "";
+            for (const c of state.text_channels) {
+                    const o = document.createElement('option');
+                o.innerHTML = c[0]+": "+c[1];
+                o.setAttribute('value', c[2]);
+                document.querySelector('#tchannels').appendChild(o);
             }
-            document.querySelector('#vchannels').appendChild(a);
         }
-        if(!connected){
-            document.querySelector('#prompts').style.opacity = "0.25";
-            document.querySelector('#manualTTS').style.opacity = "0.25";
-        }else{
-            document.querySelector('#prompts').style.opacity = "1";
-            document.querySelector('#manualTTS').style.opacity = "1";
-        }
-        document.querySelector('#prompt-list').innerHTML = "";
-        for (const group of state.prompts) {
-            let groupHTML = [];
-            for (const prompt of group){
+        if(state.voice_channels){
+            document.querySelector('#vchannels').innerHTML = "";
+            let connected = false;
+            for (const c of state.voice_channels) {
                 const a = document.createElement('a');
                 a.setAttribute('href', 'javascript:void(0)');
-                a.style.display = "inline";
-                a.innerHTML = prompt;
-                groupHTML.push(a.outerHTML);
+                a.innerHTML = c[0]+": "+c[1];
+                a.setAttribute('data-id', c[2]);
+                if(c[3]){
+                    connected = true;
+                    a.innerHTML += " (connected)";
+                }
+                document.querySelector('#vchannels').appendChild(a);
             }
-            document.querySelector('#prompt-list').innerHTML += groupHTML.join(' - ');
-            groupHTML = "";
-            document.querySelector('#prompt-list').innerHTML += "<br><br>";
+            if(!connected){
+                document.querySelector('#prompts').style.opacity = "0.25";
+                document.querySelector('#manualTTS').style.opacity = "0.25";
+            }else{
+                document.querySelector('#prompts').style.opacity = "1";
+                document.querySelector('#manualTTS').style.opacity = "1";
+            }
+        }
+        if(state.prompts){
+            document.querySelector('#prompt-list').innerHTML = "";
+            for (const group of state.prompts) {
+                let groupHTML = [];
+                for (const prompt of group){
+                    const a = document.createElement('a');
+                    a.setAttribute('href', 'javascript:void(0)');
+                    a.style.display = "inline";
+                    a.innerHTML = prompt;
+                    groupHTML.push(a.outerHTML);
+                }
+                document.querySelector('#prompt-list').innerHTML += groupHTML.join(' - ');
+                groupHTML = "";
+                document.querySelector('#prompt-list').innerHTML += "<br><br>";
+            }
         }
     });
 
