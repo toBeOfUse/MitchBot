@@ -2,5 +2,5 @@ login_token.txt
 *.wav
 .idea/*
 __pycache__/*
-static/html/*
+static/html/*.html
 venv/*
