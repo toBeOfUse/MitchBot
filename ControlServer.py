@@ -79,6 +79,7 @@ async def connected(connection, details):
     else:
         geo = json.loads((await http_client.fetch('https://ipinfo.io/'+details['ip']+'/geo')).body)
         print('websocket connected from', details['ip'], geo['country'], geo['region'], geo['city'])
+    discord_client.set_prompts(discord_client.get_prompts())  # sounds legit
     connection.emit('set-state', discord_client.public_state)
     discord_client.public_state.add_listener(connection.state_listener)
 
@@ -118,11 +119,7 @@ async def start_song(connection, details):
 
 @WebSocketEventHandler.on_event('new-prompts')
 def new_prompts(connection, details):
-    prompts_string = '\n\n'.join([' - '.join(x) for x in details])
-    txt = open('prompts.txt', 'w')
-    txt.write(prompts_string)
-    txt.close()
-    discord_client.public_state['prompts'] = details
+    discord_client.set_prompts(details)
 
 
 static = os.path.join(os.getcwd(), "static\\")

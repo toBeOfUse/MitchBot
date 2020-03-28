@@ -53,7 +53,7 @@ class MitchClient(discord.Client):
         self.public_state = ReactiveDict()
         self.public_state['text_channels'] = []
         self.public_state['voice_channels'] = []
-        self.public_state['prompts'] = []
+        self.public_state['prompts'] = self.get_prompts()
         self.public_state['currently_playing'] = ""
         self.public_state['current_voice'] = self.voice.current_voice()
 
@@ -80,11 +80,6 @@ class MitchClient(discord.Client):
                 break
         self.public_state['text_channels'] = self.get_text_channels()
         self.public_state['voice_channels'] = self.get_voice_channels()
-        prompts = open('prompts.txt', 'r')
-        text = prompts.read()
-        groups = text.split('\n')
-        prompts.close()
-        self.public_state['prompts'] = [x.split('-') for x in groups]
 
     # todo: make this less than 10 billion lines long
     async def on_message(self, message):
@@ -291,6 +286,20 @@ class MitchClient(discord.Client):
             self.public_state['voice_channels'] = self.get_voice_channels()
 
     # public interface:
+
+    def get_prompts(self):
+        prompts = open('prompts.txt', 'r')
+        text = prompts.read()
+        groups = re.split(r"\n+", text)
+        prompts.close()
+        return [x.split('-') for x in groups]
+
+    def set_prompts(self, prompts):
+        prompts_string = '\n\n'.join([z.strip() for z in [' - '.join([y.strip() for y in x]) for x in prompts]])
+        txt = open('prompts.txt', 'w')
+        txt.write(prompts_string)
+        txt.close()
+        self.public_state['prompts'] = prompts
 
     async def start_playing(self, audio_file, name=None):
         if not name:
