@@ -150,22 +150,11 @@ class MitchClient(discord.Client):
             if response.react_to(message):
                 return
         if self.user.mentioned_in(message):
-            if random.randint(0, 10) < 7:
-                compliments = [
-                    "you're great, ", "you're wonderful, ", "that's amazing, ",
-                    "i'm impressed, ", "that's incredible, ", "beautiful, ", "exactly, ",
-                    "couldn't have put it better myself, ", "bleep-bloop, ", "truly, ",
-                    "amAzing, ", "excellent, "]
-                compliment = random.choice(compliments)
-                message_string = compliment + message.author.mention
-                await message.channel.send(message_string)
-            else:
-                poem = next(textresources.poetry_generator)
-                await message.channel.send(poem)
+            poem = next(textresources.poetry_generator)
+            await message.channel.send(poem)
 
         # casual responses
         '''
-        # @ mention commands
             elif "emoji" in text:
                 usage_hint = "usage is as follows: @MitchBot emoji \"emoji_name\" \\`emoji_souce_image_url\\`. " + \
                     "you can copy and paste this into the message box, if that helps. you can also add your image to " +\
