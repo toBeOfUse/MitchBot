@@ -1,6 +1,5 @@
 # python libraries
 import asyncio
-import datetime
 import inspect
 import math
 import os
@@ -8,8 +7,6 @@ import random
 import re
 import subprocess
 import time
-import traceback
-import urllib
 from io import BytesIO
 
 # package dependencies
@@ -24,8 +21,12 @@ import textresources
 http_client = tornado.httpclient.AsyncHTTPClient()
 
 
-# class for a dict that accepts listener functions/coroutines and calls them when with a key and a value when it updates
 class ReactiveDict(dict):
+    '''
+    a dict that accepts listener functions/coroutines to call when the value
+    corresponding to a specified key is updated
+    '''
+
     def __init__(self):
         super().__init__()
         self.listeners = []
@@ -39,8 +40,63 @@ class ReactiveDict(dict):
     def __setitem__(self, key, value):
         super().__setitem__(key, value)
         if self.listeners:
-            [asyncio.create_task(x(key, value)) if inspect.iscoroutinefunction(x) else x(key, value) for x in
-             self.listeners]
+            [asyncio.create_task(x(key, value)) if inspect.iscoroutinefunction(x)
+             else x(key, value) for x in self.listeners]
+
+
+class MessageResponder():
+    '''
+    Stores a condition and a function to call if asked to react to a message that
+    meets that condition.
+    '''
+
+    def __init__(self, condition, responder, require_mention=False):
+        '''
+        Args:
+            condition: either a string or list of strings that can be used as a
+            regular expression to search the message contents case-insensitively
+            or a function that returns true or false depending on whether the
+            MessageResponder should respond.
+            responder: a function that is called with the message that we are
+            potentially going to respond to. this can be a normal function that
+            potentially returns a future or an async function.
+        '''
+        self.condition = condition
+        self.responder = responder
+        self.require_mention = require_mention
+
+    def react_to(self, message: discord.Message):
+        '''
+        Reacts to messages by executing a function if the certain condition is fulfilled.
+        '''
+        if message.author.bot:
+            return
+        match = False
+        if self.require_mention:
+            users_mentioned_by_role = []
+            for role in message.role_mentions:
+                for user in role.members:
+                    users_mentioned_by_role.append(user)
+            if not (message.guild.me in message.mentions or message.guild.me in users_mentioned_by_role):
+                return
+        if isinstance(self.condition, str):
+            if re.search(self.condition, message.content, re.IGNORECASE):
+                match = True
+        elif isinstance(self.condition, list):
+            for regex in self.condition:
+                if re.search(regex, message.content, re.IGNORECASE):
+                    match = True
+                    break
+        elif inspect.isfunction(self.condition) and self.condition(message):
+            match = True
+        if match:
+            if inspect.iscoroutinefunction(self.responder):
+                asyncio.create_task(self.responder(message))
+            else:
+                potential_future = self.responder(message)
+                if potential_future is not None:
+                    asyncio.create_task(potential_future)
+        return match
 
 
 class MitchClient(discord.Client):
@@ -49,13 +105,13 @@ class MitchClient(discord.Client):
         self.vc = None
         self.voice = speaker.VoiceHaver()
         self.started_playing = -1
-        self.tombot_mocked = False
         self.public_state = ReactiveDict()
         self.public_state['text_channels'] = []
         self.public_state['voice_channels'] = []
         self.public_state['prompts'] = self.get_prompts()
         self.public_state['currently_playing'] = ""
         self.public_state['current_voice'] = self.voice.current_voice()
+        self.responses: list[MessageResponder] = []
 
     @classmethod
     async def get_avatar_small(cls, user, final_size):
@@ -65,174 +121,54 @@ class MitchClient(discord.Client):
             .resize((final_size, final_size), Image.LANCZOS)
 
     async def on_ready(self):
-        print('Logged on as {0}!'.format(self.user))
-        vc_connected = False
-        nym_g = discord.utils.find(lambda g: "tanya" in g.name, self.guilds)
-        self_member = discord.utils.find(lambda m: m == self.user, nym_g.members)
-        await self_member.edit(nick="#758: \"Heart’s Desire\"")
-        for g in self.guilds:
-            for vc in g.voice_channels:
-                if self.user in vc.members:
-                    self.vc = await vc.connect()
-                    vc_connected = True
-                    break
-            if vc_connected:
-                break
+        print(f'Logged on as {self.user}!')
+        for guild in self.guilds:
+            await guild.me.edit(nick="MitchBot")
+        # for g in self.guilds:
+        #     for vc in g.voice_channels:
+        #         if self.user in vc.members:
+        #             self.vc = await vc.connect()
+        #             vc_connected = True
+        #             break
+        #     if vc_connected:
+        #         break
         self.public_state['text_channels'] = self.get_text_channels()
         self.public_state['voice_channels'] = self.get_voice_channels()
 
-    # todo: make this less than 10 billion lines long
+    def register_responder(self, responder: MessageResponder):
+        self.responses.append(responder)
+
     async def on_message(self, message):
-        print('Message from {0.author}: {0.content}'.format(message))
+        print(f'Message from {message.author}: {message.content}')
         if message.author == self.user:
             return
-        text = message.content.lower()
 
         if False and message.author.id == 191291201805090817:  # nym, whose mic setup don't work
             await self.say(message.content)
 
-        # casual responses
-        if re.search(r"\bbot\b", text) or "mitchbot" in text or "robot" in text:
-            await message.add_reaction('🤖')
-        elif "magic" in text and ("8" in text or "eight" in text) and "ball" in text:
-            responses = ["It is certain.", "It is decidedly so.", "Without a doubt.", "Yes - definitely.",
-                         "You may rely on it.", "As I see it, yes.", "Most likely.", "Outlook good.", "Yes.",
-                         "Signs point to yes.", "Reply hazy, try again.", "Ask again later.",
-                         "Better not tell you now.", "Cannot predict now.", "Concentrate and ask again.",
-                         "Don't count on it.", "My reply is no.", "My sources say no.", "Outlook not so good.",
-                         "Very doubtful."]
-            response = random.choice(responses)
-            await message.channel.send('magic 8 ball sez: "' + response+'"')
-        elif "horse" in text:
-            site_to_send = random.choice(["http://nice.horse", "http://endless.horse"])
-            await message.channel.send(site_to_send, file=discord.File(fp="images/horse.jpg"))
-        elif re.search(r"\bgood\s?night\b", text):
-            await message.channel.send("🛏️💖")
-        elif "fuck you" in text:
-            fuck = await message.channel.send("fuck you 🤬")
-            await asyncio.sleep(3)
-            await fuck.edit(content='love you guys')
-        elif hmm_match := re.search(r"\bhm(m*)\b", text):
-            if not message.author.bot:
-                await message.channel.send(next(textresources.poetry_generator))
-            else:  # anti-tombot measures
-                if not self.tombot_mocked:
-                    hmm_length = len(hmm_match.group(0))
-                    hmm_string = 'h' + ''.join(['‍m' for _ in range(hmm_length-1)]) + '~'  # zero-width space
-                    await message.channel.send('[tombot voice] '+hmm_string)
-                    self.tombot_mocked = True
-                    await asyncio.sleep(10)
-                    self.tombot_mocked = False
-                else:
-                    await message.delete()
-        elif "flip" in text and "coin" in text:
-            await message.channel.send(random.choice(['heads', 'tails']))
+        for response in self.responses:
+            if response.react_to(message):
+                return
+        if self.user.mentioned_in(message):
+            if random.randint(0, 10) < 7:
+                compliments = [
+                    "you're great, ", "you're wonderful, ", "that's amazing, ",
+                    "i'm impressed, ", "that's incredible, ", "beautiful, ", "exactly, ",
+                    "couldn't have put it better myself, ", "bleep-bloop, ", "truly, ",
+                    "amAzing, ", "excellent, "]
+                compliment = random.choice(compliments)
+                message_string = compliment + message.author.mention
+                await message.channel.send(message_string)
+            else:
+                poem = next(textresources.poetry_generator)
+                await message.channel.send(poem)
 
+        # casual responses
+        '''
         # @ mention commands
-        users_mentioned_by_role = []
-        for role in message.role_mentions:
-            for user in role.members:
-                users_mentioned_by_role.append(user)
-        if self.user in message.mentions or self.user in users_mentioned_by_role:
-            other_mentions = [x for x in message.mentions if x != self.user]
-            if "fake link" in text and len(other_mentions) == 0:
-                async with message.channel.typing():
-                    searchpart = text[re.search(r"fake link", text).end():]
-                    title = re.search(r"['\"“”‘’„](.*?)['\"“”‘’„]", searchpart)
-                    if not title or not title.group(1).strip():
-                        await message.channel.send(
-                            content="use it like this: @MitchBot fake link \"title\" \\*description\\* \\`image url\\`",
-                        )
-                    else:
-                        title = title.group(1).strip()
-                        description = re.search(r"\*(.*?)\*", searchpart)
-                        if description:
-                            description = description.group(1).strip()
-                        else:
-                            description = ""
-                        image_url = re.search(r"`(.*?)`", searchpart)
-                        if image_url:
-                            image_url = image_url.group(1).strip()
-                        else:
-                            image_url = ""
-                        webpage = '''
-<html>
-    <head>
-        <title>''' + title + '''</title>
-        <meta name="description" content="''' + description + '''">
-        <meta name="og:image" content="''' + image_url + '''">
-    </head>
-    <body>
-        <p>:P</p>
-    </body>
-</html>'''
-                        filename = urllib.parse.quote(title.replace(' ', '-') + '.html')
-                        html = open('static/html/' + filename, 'w+')
-                        html.write(webpage)
-                        html.close()
-                        external_ip = str((await http_client.fetch('https://ident.me')).body, 'utf-8')
-                        await message.channel.send('http://' + external_ip + ':9876/html/' + filename)
-            elif "roll" in text and (nums := re.search(r"(\d+)d(\d+)", text)):
-                if (quantity := nums.group(1)) and (maximum := nums.group(2)):
-                    rolls = [random.randint(1, int(maximum)) for _ in range(int(quantity))]
-                    if int(quantity) > 1:
-                        rolls_string = " + ".join([str(r) for r in rolls]) + " = "
-                    else:
-                        rolls_string = "your result is: "
-                    await message.channel.send(rolls_string + str(sum(rolls)))
-            elif "make" in text and "fight" in text:
-                if len(other_mentions) == 2:
-                    async with message.channel.typing():
-                        i1 = await self.get_avatar_small(other_mentions[0], 180)
-                        i2 = await self.get_avatar_small(other_mentions[1], 180)
-                        bg = Image.open('images/fight.png')
-                        blank = Image.new("RGBA", (640, 200), 0)
-                        mask = Image.open('images/mask.png')
-                        blank.paste(i1, (10, 10))
-                        blank.paste(i2, (640-10-180, 10))
-                        bg.paste(blank, (0, 0), mask)
-                        image_bytes = BytesIO()
-                        bg.save(image_bytes, format='PNG')
-                        image_bytes.seek(0)
-                        await message.channel.send(file=discord.File(fp=image_bytes, filename='fight.png'))
-                # if we're being asked to make someone else and us fight
-                elif len(other_mentions) == 1 and message.raw_mentions.count(self.user.id) == 2:
-                    await message.channel.send('nope, too scared')
-                elif len(other_mentions) == 1 and message.raw_mentions.count(other_mentions[0].id) > 1:
-                    await message.channel.send('it takes two to tango')
-            elif "kiss" in text and len(other_mentions) == 0:
-                async with message.channel.typing():
-                    recipient = message.author
-                    avatar = await self.get_avatar_small(recipient, 200)
-                    blank = Image.new('RGBA', (200, 200), 0)
-                    mask = Image.open("images/mask_rect.png")
-                    blank.paste(avatar, (0, 0), mask)
-                    smooch = Image.open("images/kiss.png")
-                    final = Image.alpha_composite(blank, smooch)
-                    image_bytes = BytesIO()
-                    final.save(image_bytes, format='PNG')
-                    image_bytes.seek(0)
-                    await message.channel.send(file=discord.File(fp=image_bytes, filename='kiss.png'))
-            elif ("when" in text and "born" in text) or ("my" in text and "age" in text):
-                async with message.channel.typing():
-                    ages = ([x for x in range(1899, 1972)] + [y for y in range(2009, 2019)])
-                    age = random.choice(ages)
-                    await asyncio.sleep(3)
-                    await message.channel.send('you were born in: '+str(age))
-            elif "what" in text and "day" in text:
-                now = datetime.date.today()
-                days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-                wrong_days = days[0:now.weekday()] + days[now.weekday()+1:]
-                random.shuffle(wrong_days)
-                message = await message.channel.send("um " + wrong_days[0])
-                await asyncio.sleep(0.3)
-                for d in wrong_days[1:] + ["um", "oh god uh", "\*sweats*"]:
-                    await message.edit(content=d)
-                    await asyncio.sleep(0.3)
-                await message.edit(content=days[now.weekday()])
             elif "emoji" in text:
                 usage_hint = "usage is as follows: @MitchBot emoji \"emoji_name\" \\`emoji_souce_image_url\\`. " + \
-                    "you can copy and paste this into the message box, if that helps. you can also add your image to "+\
+                    "you can copy and paste this into the message box, if that helps. you can also add your image to " +\
                     "your message instead of giving a url for it."
                 emoji_name = re.search(r"(?:['\"“”‘’„])(.*?)(?:['\"“”‘’„])", text)
                 emoji_url = re.search(r"`(.*?)`", text)
@@ -256,28 +192,7 @@ class MitchClient(discord.Client):
                         print(traceback.format_exc())
                         await message.channel.send("error loading image :( check the url and try again?")
                         await message.channel.send(usage_hint)
-            elif "nickname" in text:
-                num = random.randint(0, len(textresources.nicknames) - 1)
-                list_num = 1
-                if num > 583:
-                    num -= 583
-                    list_num = 2
-                mess = "#" + str(num+1) + " from list " + str(list_num) + ": " + textresources.nicknames[num]
-                await message.channel.send(mess)
-
-            else:
-                if random.randint(0, 10) < 7:
-                    compliments = [
-                        "you're great, ", "you're wonderful, ", "that's amazing, ", "i'm impressed, ",
-                        "that's incredible, ", "beautiful, ", "exactly, ", "couldn't have put it better myself, ",
-                        "bleep-bloop, ", "truly, ", "amAzing, ", "excellent, "
-                    ]
-                    compliment = random.choice(compliments)
-                    message_string = compliment + message.author.mention
-                    await message.channel.send(message_string)
-                else:
-                    poem = next(textresources.poetry_generator)
-                    await message.channel.send(poem)
+            '''
 
     async def on_disconnect(self):
         if self.vc:
@@ -285,7 +200,7 @@ class MitchClient(discord.Client):
             self.vc = None
             self.public_state['voice_channels'] = self.get_voice_channels()
 
-    # public interface:
+    # public interface for remote control voice and text chat control:
 
     def get_prompts(self):
         prompts = open('prompts.txt', 'r')
@@ -295,7 +210,9 @@ class MitchClient(discord.Client):
         return [x.split('-') for x in groups]
 
     def set_prompts(self, prompts):
-        prompts_string = '\n\n'.join([z.strip() for z in [' - '.join([y.strip() for y in x]) for x in prompts]])
+        prompts_string = '\n\n'.join([z.strip()
+                                      for z in
+                                      [' - '.join([y.strip() for y in x]) for x in prompts]])
         txt = open('prompts.txt', 'w')
         txt.write(prompts_string)
         txt.close()
@@ -356,8 +273,8 @@ class MitchClient(discord.Client):
         for guild in self.guilds:
             for channel in guild.voice_channels:
                 # todo: check if we actually have permission to connect
-                vcs.append([str(guild), str(channel), str(channel.id),
-                            bool(self.vc and self.vc.is_connected() and self.vc.channel == channel)])
+                vcs.append([str(guild), str(channel), str(channel.id), bool(
+                    self.vc and self.vc.is_connected() and self.vc.channel == channel)])
         return vcs
 
     def get_text_channels(self):
