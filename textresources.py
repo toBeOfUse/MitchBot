@@ -1,24 +1,21 @@
 import random
 import re
+from collections import deque
 
 
 # creates a generator that yields the elements of the input list in a random order infinitely without repeating except
 # when the list runs out
 def choice_no_repeats(in_list):
-    count = 0
-    r = list(in_list)
-    random.shuffle(r)
+    source = deque()
     while True:
-        yield r[count]
-        count += 1
-        if count == len(r):
-            count = 0
-            random.shuffle(r)
+        if len(source) == 0:
+            source.extend(random.sample(in_list, len(in_list)))
+        yield source.pop()
 
 
-with open("poetry.txt") as poetry_file:
+with open("poetry.txt", encoding="utf-8") as poetry_file:
     raw_poems = poetry_file.read().split("\n---\n")
-    poetry = [p.trim() for p in raw_poems if p.trim()]
+    poetry = [p.strip() for p in raw_poems if p.strip()]
 
 poetry_generator = choice_no_repeats(poetry)
 
