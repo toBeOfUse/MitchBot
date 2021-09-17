@@ -5,7 +5,6 @@ import random
 
 import discord
 from PIL import Image
-from discord.message import Message
 
 from MitchBot import MitchClient, MessageResponder
 import textresources
@@ -19,7 +18,7 @@ def add_responses(bot: MitchClient):
     bot.register_responder(
         MessageResponder(
             r"magic (8|eight) ball",
-            lambda m: m.channel.send("magic 8 ball sez: \""+random.choice([
+            lambda m: m.reply("magic 8 ball sez: \""+random.choice([
                 "It is certain.", "It is decidedly so.", "Without a doubt.", "Yes - definitely.",
                 "You may rely on it.", "As I see it, yes.", "Most likely.", "Outlook good.", "Yes.",
                 "Signs point to yes.", "Reply hazy, try again.", "Ask again later.",
@@ -37,7 +36,8 @@ def add_responses(bot: MitchClient):
     bot.register_responder(
         MessageResponder(
             r"\bflip\b.*\bcoin\b",
-            lambda m: m.channel.send("\U0001FA99 " + random.choice(["heads", "tails"]))  # coin emoji
+            lambda m: m.reply(
+                "\U0001FA99 " + random.choice(["heads", "tails"]))  # coin emoji
         )
     )
 
@@ -53,10 +53,16 @@ def add_responses(bot: MitchClient):
     )
 
     async def fight(message: discord.Message):
-        if len(message.mentions) == 2:
+        if len(
+                message.mentions) == 2 or (
+                len(message.mentions) == 3 and bot.user.mentioned_in(message)):
             async with message.channel.typing():
-                i1 = await bot.get_avatar_small(message.mentions[0], 180)
-                i2 = await bot.get_avatar_small(message.mentions[1], 180)
+                if len(message.mentions) == 2:
+                    fighters = message.mentions
+                else:
+                    fighters = [user for user in message.mentions if bot.user != user]
+                i1 = await bot.get_avatar_small(fighters[0], 180)
+                i2 = await bot.get_avatar_small(fighters[1], 180)
                 bg = Image.open('images/fight.png')
                 blank = Image.new("RGBA", (640, 200), 0)
                 mask = Image.open('images/mask.png')
@@ -69,6 +75,8 @@ def add_responses(bot: MitchClient):
                 await message.channel.send(file=discord.File(fp=image_bytes, filename='fight.png'))
         elif len(message.mentions) == 1:
             await message.channel.send('it takes two to tango')
+        else:
+            await message.channel.send('too many people...')
     bot.register_responder(MessageResponder("make.*fight", fight))
 
     async def kiss(message: discord.Message):
@@ -83,7 +91,7 @@ def add_responses(bot: MitchClient):
             image_bytes = BytesIO()
             final.save(image_bytes, format='PNG')
             image_bytes.seek(0)
-            await message.channel.send(file=discord.File(fp=image_bytes, filename='kiss.png'))
+            await message.reply(file=discord.File(fp=image_bytes, filename='kiss.png'))
     bot.register_responder(MessageResponder("kiss", kiss, require_mention=True))
 
     async def day_of_week(message: discord.Message):
@@ -101,12 +109,6 @@ def add_responses(bot: MitchClient):
     bot.register_responder(MessageResponder("what.*day", day_of_week))
 
     async def nickname(message: discord.Message):
-        num = random.randint(0, len(textresources.nicknames) - 1)
-        list_num = 1
-        if num > 583:
-            num -= 583
-            list_num = 2
-        mess = "#" + str(num+1) + " from list " + str(
-            list_num) + ": " + textresources.nicknames[num]
-        await message.channel.send(mess)
+        mess = "hello, ✨" + random.choice(textresources.nicknames)+"✨"
+        await message.reply(mess)
     bot.register_responder(MessageResponder("nickname", nickname, require_mention=True))
