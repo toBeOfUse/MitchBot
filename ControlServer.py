@@ -15,7 +15,8 @@ import tornado.websocket
 import MitchBot
 
 if sys.platform == 'win32':
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # required for tornado in python 3.8
+    # required for tornado in python 3.8
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 discord_client = None  # instantiated in main() so as to use the event loop created when main() is run
 http_client = tornado.httpclient.AsyncHTTPClient()
@@ -51,8 +52,9 @@ class WebSocketEventHandler(tornado.websocket.WebSocketHandler):
 
     def handle(self, event_name, details=None):
         if event_name in self.handlers:
-            [asyncio.create_task(x(self, details)) if inspect.iscoroutinefunction(x) else x(self, details) for x in
-             self.handlers[event_name]]
+            [asyncio.create_task(x(self, details))
+             if inspect.iscoroutinefunction(x) else x(self, details)
+             for x in self.handlers[event_name]]
         else:
             print('received '+event_name+' event without having a handler to handle it')
 
@@ -83,39 +85,48 @@ async def connected(connection, details):
     connection.emit('set-state', discord_client.public_state)
     discord_client.public_state.add_listener(connection.state_listener)
 
+
 @WebSocketEventHandler.on_event('closed')
 def closed(connection, details):
     print('websocket closed')
     discord_client.public_state.remove_listener(connection.state_listener)
 
+
 @WebSocketEventHandler.on_event('interrupt')
 def stop(connection, details):
     discord_client.interrupt_voice()
+
 
 @WebSocketEventHandler.on_event('switch_voice')
 def switch_voice(connection, details):
     discord_client.change_voice()
 
+
 @WebSocketEventHandler.on_event('say')
 async def say(connection, details):
     await discord_client.say(details['text'])
+
 
 @WebSocketEventHandler.on_event('vc_connect')
 async def vc_connect(connection, details):
     await discord_client.connect_to_vc(int(details['channel_id']))
 
+
 @WebSocketEventHandler.on_event('turn_off')
 async def turn_off(connection, details):
     await discord_client.logout()
+
 
 @WebSocketEventHandler.on_event('send_message')
 async def send_message(connection, details):
     channel = discord_client.get_channel(int(details['channel_id']))
     await channel.send(details['message'])
 
+
 @WebSocketEventHandler.on_event('start_song')
 async def start_song(connection, details):
     await discord_client.start_playing('music/' + details['song'] + ".mp3", details['song'])
+
 
 @WebSocketEventHandler.on_event('new-prompts')
 def new_prompts(connection, details):
