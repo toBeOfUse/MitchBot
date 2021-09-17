@@ -95,7 +95,7 @@ def closed(connection, details):
 
 @WebSocketEventHandler.on_event('interrupt')
 def stop(connection, details):
-    discord_client.interrupt_voice()
+    discord_client.interrupt_current_audio()
 
 
 @WebSocketEventHandler.on_event('switch_voice')

@@ -3,7 +3,6 @@ import asyncio
 import inspect
 import math
 import os
-import random
 import re
 import subprocess
 import time
@@ -15,7 +14,7 @@ import tornado.httpclient
 from PIL import Image
 
 # project files
-import speaker
+# import speaker
 import textresources
 
 http_client = tornado.httpclient.AsyncHTTPClient()
@@ -103,14 +102,14 @@ class MitchClient(discord.Client):
     def __init__(self):
         super().__init__()
         self.vc = None
-        self.voice = speaker.VoiceHaver()
+        # self.voice = speaker.VoiceHaver()
         self.started_playing = -1
         self.public_state = ReactiveDict()
         self.public_state['text_channels'] = []
         self.public_state['voice_channels'] = []
         self.public_state['prompts'] = self.get_prompts()
         self.public_state['currently_playing'] = ""
-        self.public_state['current_voice'] = self.voice.current_voice()
+        # self.public_state['current_voice'] = self.voice.current_voice()
         self.responses: list[MessageResponder] = []
 
     @classmethod
@@ -219,7 +218,7 @@ class MitchClient(discord.Client):
             output = str(popen.stdout.read(), 'utf-8')
             length = re.search(r"(.*?)\r\n", output.split('=')[1]).group(1)
             if self.vc.is_playing():
-                self.interrupt_voice()
+                self.interrupt_current_audio()
             source = await discord.FFmpegOpusAudio.from_probe(audio_file)
             self.vc.play(source)
             self.public_state['currently_playing'] = name
@@ -230,15 +229,17 @@ class MitchClient(discord.Client):
                 self.public_state['currently_playing'] = ""
 
     async def say(self, text):
-        audio_name = self.voice.text_to_wav(text)
-        audio_file = os.path.join(os.getcwd(), "audio\\", audio_name)
-        await self.start_playing(audio_file, text)
+        pass
+        # audio_name = self.voice.text_to_wav(text)
+        # audio_file = os.path.join(os.getcwd(), "audio\\", audio_name)
+        # await self.start_playing(audio_file, text)
 
     def change_voice(self):
-        self.voice.change_voice()
-        self.public_state['current_voice'] = self.voice.current_voice()
+        pass
+        # self.voice.change_voice()
+        # self.public_state['current_voice'] = self.voice.current_voice()
 
-    def interrupt_voice(self):
+    def interrupt_current_audio(self):
         if self.vc and self.vc.is_playing():
             self.vc.stop()
             self.public_state['currently_playing'] = ""
