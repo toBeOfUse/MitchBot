@@ -18,7 +18,7 @@ def add_responses(bot: MitchClient):
     bot.register_responder(
         MessageResponder(
             r"magic (8|eight) ball",
-            lambda m: m.reply("magic 8 ball sez: \""+random.choice([
+            lambda m: m.reply("magic 8-ball sez: \""+random.choice([
                 "It is certain.", "It is decidedly so.", "Without a doubt.", "Yes - definitely.",
                 "You may rely on it.", "As I see it, yes.", "Most likely.", "Outlook good.", "Yes.",
                 "Signs point to yes.", "Reply hazy, try again.", "Ask again later.",
@@ -100,13 +100,13 @@ def add_responses(bot: MitchClient):
                 "Thursday", "Friday", "Saturday", "Sunday"]
         wrong_days = days[0:now.weekday()] + days[now.weekday()+1:]
         random.shuffle(wrong_days)
-        message = await message.channel.send("um " + wrong_days[0])
+        message = await message.reply("um " + wrong_days[0])
         await asyncio.sleep(0.5)
         for d in wrong_days[1:] + ["um", "oh god uh", "\*sweats*"]:
             await message.edit(content=d)
             await asyncio.sleep(0.5)
         await message.edit(content=days[now.weekday()])
-    bot.register_responder(MessageResponder("what.*day", day_of_week))
+    bot.register_responder(MessageResponder("what.*day|day of the week", day_of_week))
 
     async def nickname(message: discord.Message):
         mess = "hello, ✨" + random.choice(textresources.nicknames)+"✨"
