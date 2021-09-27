@@ -2,7 +2,6 @@
 import asyncio
 import inspect
 import math
-import os
 import re
 import subprocess
 import time
@@ -10,14 +9,11 @@ from io import BytesIO
 
 # package dependencies
 import discord
-import tornado.httpclient
 from PIL import Image
 
 # project files
 # import speaker
 import textresources
-
-http_client = tornado.httpclient.AsyncHTTPClient()
 
 
 class ReactiveDict(dict):
@@ -150,37 +146,9 @@ class MitchClient(discord.Client):
                 return
         if self.user.mentioned_in(message):
             poem = next(textresources.poetry_generator)
-            await message.channel.send(poem)
+            await message.reply(poem)
 
-        # casual responses
-        '''
-            elif "emoji" in text:
-                usage_hint = "usage is as follows: @MitchBot emoji \"emoji_name\" \\`emoji_souce_image_url\\`. " + \
-                    "you can copy and paste this into the message box, if that helps. you can also add your image to " +\
-                    "your message instead of giving a url for it."
-                emoji_name = re.search(r"(?:['\"“”‘’„])(.*?)(?:['\"“”‘’„])", text)
-                emoji_url = re.search(r"`(.*?)`", text)
-                if not emoji_name or (not emoji_url and not message.attachments):
-                    await message.channel.send(usage_hint)
-                else:
-                    emoji_name = emoji_name.group(1)
-                    try:
-                        if emoji_url:
-                            emoji_url = emoji_url.group(1)
-                            emoji_file = (await http_client.fetch(emoji_url)).body
-                        else:
-                            emoji_url = "uploaded image"  # for error handling
-                            emoji_file = BytesIO()
-                            await message.attachments[0].save(emoji_file, seek_begin=True)
-                            emoji_file = emoji_file.read()
-                        created_emoji = await message.guild.create_custom_emoji(name=emoji_name, image=emoji_file)
-                        await message.channel.send(str(created_emoji))
-                    except Exception as e:
-                        print('error obtaining image from '+emoji_url+':')
-                        print(traceback.format_exc())
-                        await message.channel.send("error loading image :( check the url and try again?")
-                        await message.channel.send(usage_hint)
-            '''
+        
 
     async def on_disconnect(self):
         if self.vc:
