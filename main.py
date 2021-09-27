@@ -14,6 +14,7 @@ import tornado.websocket
 # project files
 import MitchBot
 from responders import add_responses
+from scheduler import schedule_tasks
 
 if sys.platform == 'win32':
     # required for tornado in python 3.8
@@ -145,6 +146,7 @@ async def main():
     global discord_client
     discord_client = MitchBot.MitchClient()
     add_responses(discord_client)
+    schedule_tasks(discord_client)
     server.listen(9876)
     token_file = open('login_token.txt')
     await discord_client.login(token_file.read())
