@@ -1,5 +1,7 @@
-from dataclasses import dataclass
+import asyncio
 import math
+import re
+import json
 
 import discord
 from tornado.httpclient import AsyncHTTPClient
@@ -87,19 +89,27 @@ class Puzzle():
         image = image.resize((output_width, output_width), resample=Image.LANCZOS)
         image.show()
 
+    @classmethod
+    async def fetch_from_nyt(cls) -> "Puzzle":
+        client = AsyncHTTPClient()
+        response = await client.fetch("https://www.nytimes.com/puzzles/spelling-bee")
+        html = response.body.decode("utf-8")
+        game_data = re.search("window.gameData = (.*?)</script>", html)
+        if game_data:
+            game = json.loads(game_data.group(1))["today"]
+            return cls(
+                game["centerLetter"],
+                game["outerLetters"],
+                game["pangrams"],
+                game["answers"])
+
 
 def schedule_tasks(client: discord.Client):
     pass
 
 
+async def test():
+    (await Puzzle.fetch_from_nyt()).render()
+
 if __name__ == "__main__":
-    # tests
-    Puzzle(
-        "t", ["a", "e", "h", "m", "p", "y"],
-        ["empathy"],
-        ["empathy", "apathy", "attempt", "empty", "eyeteeth", "hamate", "hate", "hath", "hatha",
-         "heat", "heath", "mahatma", "mate", "matey", "math", "matte", "meat", "meaty", "meet",
-         "meta", "mete", "meth", "myth", "pate", "path", "patty", "peat", "peaty", "petty", "phat",
-         "tame", "tamp", "tapa", "tape", "tatty", "team", "teammate", "teat", "teem", "teepee",
-         "teeth", "teethe", "temp", "tempeh", "tempt", "tepee", "that", "thee", "them", "theme",
-         "theta", "they", "thyme", "type"]).render()
+    asyncio.run(test())
