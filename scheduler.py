@@ -200,6 +200,7 @@ def schedule_tasks(client: MitchClient):
             if guess_result == Puzzle.good_word:
                 points += 1
             if guess_result == Puzzle.pangram:
+                points += 1
                 pangram = True
         if points > 0:
             await message.add_reaction("👍")
