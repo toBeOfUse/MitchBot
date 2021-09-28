@@ -57,6 +57,13 @@ class Puzzle():
         actual_to_base = temp_width/base_image_width
         image = Image.new("RGBA", (temp_width, temp_width), 0)
         surface = ImageDraw.Draw(image)
+        # experimental background
+        for i in range(8):
+            surface.regular_polygon(
+                bounding_circle=(temp_width/2, temp_width/2, temp_width/1.8),
+                n_sides=6,
+                fill=(255, 255, 255, int(100 + 155/(8-i))),
+                rotation=360/8*i)
         # bg dodecahedron, scaled to the canvas size and then translated to be centered
         surface.regular_polygon(
             bounding_circle=(temp_width/2, temp_width/2, temp_width/2),
