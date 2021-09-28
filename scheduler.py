@@ -43,12 +43,10 @@ class Puzzle():
         uses arbitrary constants defined on the class.
         """
         w = word.lower()
-        counts = self.does_word_count(w) and w not in self.guesses
-        pangram = self.is_pangram(w) and w not in self.guesses
         self.guesses.add(w)
-        if pangram:
+        if self.is_pangram(w):
             return self.pangram
-        elif counts:
+        elif self.does_word_count(w):
             return self.good_word
         else:
             return self.wrong_word
