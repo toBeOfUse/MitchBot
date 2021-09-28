@@ -138,17 +138,14 @@ class MitchClient(discord.Client):
         if message.author == self.user:
             return
 
-        if False and message.author.id == 191291201805090817:  # nym, whose mic setup don't work
-            await self.say(message.content)
-
+        responded = False
         for response in self.responses:
             if response.react_to(message):
-                return
-        if self.user.mentioned_in(message):
+                responded = True
+
+        if not responded and self.user.mentioned_in(message):
             poem = next(textresources.poetry_generator)
             await message.reply(poem)
-
-        
 
     async def on_disconnect(self):
         if self.vc:

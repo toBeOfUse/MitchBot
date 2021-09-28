@@ -29,5 +29,3 @@ MitchBot responds to the following commands if you @-mention it:
 
 - kiss
 - nickname
-
-Only one command and one key word(s) can be responded to per incoming message.
