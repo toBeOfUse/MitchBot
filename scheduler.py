@@ -25,10 +25,14 @@ class Puzzle():
         self.outside = [l.upper() for l in outside]
         self.pangrams = set(p.lower() for p in pangrams)
         self.answers = set(a.lower() for a in answers)
-        self.guesses = set()
+        self.gotten_words = set()
 
     def __eq__(self, other):
         return self.center+self.outside == other.center+other.outside
+
+    @property
+    def percentageComplete(self):
+        return round(len(self.gotten_words) / len(self.answers) * 100, 1)
 
     def does_word_count(self, word: str) -> bool:
         return word.lower() in self.answers
@@ -43,10 +47,11 @@ class Puzzle():
         uses arbitrary constants defined on the class.
         """
         w = word.lower()
-        self.guesses.add(w)
         if self.is_pangram(w):
+            self.gotten_words.add(w)
             return self.pangram
         elif self.does_word_count(w):
+            self.gotten_words.add(w)
             return self.good_word
         else:
             return self.wrong_word
@@ -167,19 +172,26 @@ def get_seconds_before_next(time_of_day: time) -> float:
 
 
 def schedule_tasks(client: MitchClient):
-    channel_id = 814334169299157001
+    channel_id = 814334169299157001  # production
+    # channel_id = 888301952067325952  # test
     fetch_new_puzzle_at = time(hour=7+4, tzinfo=timezone.utc)  # 7am EDT
+    # fetch_new_puzzle_at = time(hour=6, minute=32, tzinfo=timezone.utc)  # test
     waiting_time = get_seconds_before_next(fetch_new_puzzle_at)
     current_puzzle = None
+    last_puzzle_post = None
 
     async def send_new_puzzle():
-        nonlocal current_puzzle
+        nonlocal current_puzzle, last_puzzle_post
         current_puzzle = await Puzzle.fetch_from_nyt()
-        await client.get_channel(channel_id).send(
+        last_puzzle_post = await client.get_channel(channel_id).send(
             content=random.choice(["Good morning",
                                    "Goedemorgen",
                                    "Bon matin",
                                    "Ohayō",
+                                   "Back at it again at Krispy Kremes",
+                                   "Hello",
+                                   "Bleep Bloop",
+                                   "Here is a puzzle",
                                    "Guten Morgen"])+" ✨",
             file=discord.File(current_puzzle.render(), 'puzzle.png'))
         await asyncio.sleep(100)  # just to be safe
@@ -210,6 +222,9 @@ def schedule_tasks(client: MitchClient):
                 await message.add_reaction(num_emojis[int(num_char)])
         if pangram:
             await message.add_reaction("🍳")
+        if current_puzzle.percentageComplete > 0 and last_puzzle_post is not None:
+            base_content = re.sub("\(.*\)", "", last_puzzle_post.content).strip()
+            await last_puzzle_post.edit(content=base_content + f" ({current_puzzle.percentageComplete}% complete)")
 
     client.register_responder(MessageResponder(
         lambda m: m.channel.id == channel_id, respond_to_guesses))
