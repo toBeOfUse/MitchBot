@@ -155,12 +155,15 @@ async def do_thing_after(seconds, thing):
 
 def get_seconds_before_next(time_of_day: time) -> float:
     now = datetime.now(tz=timezone.utc)
+    print("it is currently", now)
     if now.time().replace(tzinfo=timezone.utc) > time_of_day:
         next_puzzle_day = now.replace(day=now.day+1).date()
     else:
         next_puzzle_day = now.date()
     next_puzzle_time = datetime.combine(next_puzzle_day, time_of_day)
-    return (next_puzzle_time - now).total_seconds()
+    result = (next_puzzle_time - now).total_seconds()
+    print("next", time_of_day, "is in", result, "seconds")
+    return result
 
 
 def schedule_tasks(client: MitchClient):
