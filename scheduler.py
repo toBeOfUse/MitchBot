@@ -124,11 +124,10 @@ class Puzzle():
                      fill="#000000ff", font=font, anchor="mm")
 
         image = image.resize((output_width, output_width), resample=Image.LANCZOS)
-        image.show()
-        # image_bytes = BytesIO()
-        # image.save(image_bytes, format='PNG')
-        # image_bytes.seek(0)
-        # return image_bytes
+        image_bytes = BytesIO()
+        image.save(image_bytes, format='PNG')
+        image_bytes.seek(0)
+        return image_bytes
 
     @classmethod
     async def fetch_from_nyt(cls) -> "Puzzle":
