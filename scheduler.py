@@ -1,25 +1,57 @@
 import asyncio
+from io import BytesIO
 import math
 import re
 import json
+from datetime import time, datetime, timezone
+import inspect
+import random
 
 import discord
 from tornado.httpclient import AsyncHTTPClient
 from PIL import Image, ImageDraw, ImageFont
 
+from MitchBot import MessageResponder, MitchClient
+
 
 class Puzzle():
+    # constants returned by `guess`
+    wrong_word = 1
+    good_word = 2
+    pangram = 3
+
     def __init__(self, center: str, outside: list[str], pangrams: list[str], answers: list[str]):
         self.center = center.upper()
         self.outside = [l.upper() for l in outside]
-        self.pangrams = [p.lower() for p in pangrams]
-        self.answers = [a.lower() for a in answers]
+        self.pangrams = set(p.lower() for p in pangrams)
+        self.answers = set(a.lower() for a in answers)
+        self.guesses = set()
 
     def __eq__(self, other):
         return self.center+self.outside == other.center+other.outside
 
     def does_word_count(self, word: str) -> bool:
         return word.lower() in self.answers
+
+    def is_pangram(self, word: str) -> bool:
+        return word.lower() in self.pangrams
+
+    def guess(self, word: str) -> int:
+        """
+        determines whether a word counts for a point (i. e. is in `self.answers` and
+        hasn't been tried before) or is a pangram (that hasn't been guessed before.)
+        uses arbitrary constants defined on the class.
+        """
+        w = word.lower()
+        counts = self.does_word_count(w) and w not in self.guesses
+        pangram = self.is_pangram(w) and w not in self.guesses
+        self.guesses.add(w)
+        if pangram:
+            return self.pangram
+        elif counts:
+            return self.good_word
+        else:
+            return self.wrong_word
 
     @staticmethod
     def make_hexagon(width: int, height: int, tilted: bool = False) -> list[tuple[int, int]]:
@@ -37,7 +69,7 @@ class Puzzle():
                 (-width/4, height/2)]
         return [(tuple(reversed(x)) if tilted else x) for x in base]
 
-    def render(self, output_width: int = 600) -> bytes:
+    def render(self, output_width: int = 600) -> BytesIO:
         base_hex_side = 10
         base_width = base_hex_side*2
         base_height = math.sqrt(3) * base_hex_side
@@ -95,6 +127,10 @@ class Puzzle():
 
         image = image.resize((output_width, output_width), resample=Image.LANCZOS)
         image.show()
+        # image_bytes = BytesIO()
+        # image.save(image_bytes, format='PNG')
+        # image_bytes.seek(0)
+        # return image_bytes
 
     @classmethod
     async def fetch_from_nyt(cls) -> "Puzzle":
@@ -111,8 +147,71 @@ class Puzzle():
                 game["answers"])
 
 
-def schedule_tasks(client: discord.Client):
-    pass
+async def do_thing_after(seconds, thing):
+    print("scheduling", thing.__name__, "for", seconds, "seconds from now")
+    await asyncio.sleep(seconds)
+    if inspect.iscoroutinefunction(thing):
+        asyncio.create_task(thing())
+    else:
+        thing()
+
+
+def get_seconds_before_next(time_of_day: time) -> float:
+    now = datetime.now(tz=timezone.utc)
+    if now.time().replace(tzinfo=timezone.utc) > time_of_day:
+        next_puzzle_day = now.replace(day=now.day+1).date()
+    else:
+        next_puzzle_day = now.date()
+    next_puzzle_time = datetime.combine(next_puzzle_day, time_of_day)
+    return (next_puzzle_time - now).total_seconds()
+
+
+def schedule_tasks(client: MitchClient):
+    channel_id = 888301952067325952
+    fetch_new_puzzle_at = time(hour=7-5, tzinfo=timezone.utc)  # 7am EST
+    waiting_time = get_seconds_before_next(fetch_new_puzzle_at)
+    current_puzzle = None
+
+    async def send_new_puzzle():
+        nonlocal current_puzzle
+        current_puzzle = await Puzzle.fetch_from_nyt()
+        await client.get_channel(channel_id).send(
+            content=random.choice(["Good morning",
+                                   "Goedemorgen",
+                                   "Bon matin",
+                                   "Ohayō",
+                                   "Guten Morgen"])+" ✨",
+            file=discord.File(current_puzzle.render(), 'puzzle.png'))
+        await asyncio.sleep(100)  # just to be safe
+        asyncio.create_task(
+            do_thing_after(
+                get_seconds_before_next(fetch_new_puzzle_at),
+                send_new_puzzle))
+
+    asyncio.create_task(do_thing_after(waiting_time, send_new_puzzle))
+
+    async def respond_to_guesses(message: discord.Message):
+        if current_puzzle is None:
+            return
+        num_emojis = ["0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"]
+        words = re.sub("\W", " ", message.content).split()
+        points = 0
+        pangram = False
+        for word in words:
+            guess_result = current_puzzle.guess(word)
+            if guess_result == Puzzle.good_word:
+                points += 1
+            if guess_result == Puzzle.pangram:
+                pangram = True
+        if points > 0:
+            await message.add_reaction("👍")
+            for num_char in str(points):
+                await message.add_reaction(num_emojis[int(num_char)])
+        if pangram:
+            await message.add_reaction("🍳")
+
+    client.register_responder(MessageResponder(
+        lambda m: m.channel.id == channel_id, respond_to_guesses))
 
 
 async def test():
