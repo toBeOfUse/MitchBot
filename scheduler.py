@@ -168,7 +168,7 @@ def get_seconds_before_next(time_of_day: time) -> float:
 
 def schedule_tasks(client: MitchClient):
     channel_id = 888301952067325952
-    fetch_new_puzzle_at = time(hour=7+5, tzinfo=timezone.utc)  # 7am EST
+    fetch_new_puzzle_at = time(hour=7+4, tzinfo=timezone.utc)  # 7am EDT
     waiting_time = get_seconds_before_next(fetch_new_puzzle_at)
     current_puzzle = None
 
