@@ -228,8 +228,9 @@ def schedule_tasks(client: MitchClient):
                 pangram = True
         if points > 0:
             await message.add_reaction("👍")
-            for num_char in str(points):
-                await message.add_reaction(num_emojis[int(num_char)])
+            if points > 1:
+                for num_char in str(points):
+                    await message.add_reaction(num_emojis[int(num_char)])
         if pangram:
             await message.add_reaction("🍳")
         if current_puzzle.percentageComplete > 0 and last_puzzle_post is not None:
