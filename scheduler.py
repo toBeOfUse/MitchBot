@@ -3,7 +3,7 @@ import re
 from datetime import time, datetime, timezone
 import inspect
 import random
-from typing import Callable
+from typing import Callable, Optional
 
 import discord
 
@@ -53,11 +53,12 @@ def schedule_tasks(client: MitchClient):
     # puzzle_channel_id = 888301952067325952  # test
     fetch_new_puzzle_at = time(hour=7+4, tzinfo=timezone.utc)  # 7am EDT
     # fetch_new_puzzle_at = time(hour=6, minute=32, tzinfo=timezone.utc)  # test
-    current_puzzle = None
-    last_puzzle_post = None
+    current_puzzle: Optional[Puzzle] = None
+    last_puzzle_post: Optional[Puzzle] = None
 
     async def send_new_puzzle():
         nonlocal current_puzzle, last_puzzle_post
+        previous_puzzle = current_puzzle
         current_puzzle = await Puzzle.fetch_from_nyt()
         last_puzzle_post = await client.get_channel(puzzle_channel_id).send(
             content=random.choice(["Good morning",
@@ -70,6 +71,14 @@ def schedule_tasks(client: MitchClient):
                                    "Here is a puzzle",
                                    "Guten Morgen"])+" ✨",
             file=discord.File(current_puzzle.render(), 'puzzle.png'))
+        if previous_puzzle:
+            previous_words = previous_puzzle.get_unguessed_words()
+            if len(previous_words) > 1:
+                await client.get_channel(puzzle_channel_id).send(
+                    "(The least common word that no one got for yesterday's "
+                    + f"puzzle was {previous_words[0]}; "
+                    + f"the most common word was {previous_words[-1]}.)"
+                )
 
     asyncio.create_task(repeatedly_schedule_task_for(fetch_new_puzzle_at, send_new_puzzle))
 
@@ -78,7 +87,10 @@ def schedule_tasks(client: MitchClient):
             await current_puzzle.respond_to_guesses(message)
             if current_puzzle.percentageComplete > 0 and last_puzzle_post is not None:
                 base_content = re.sub("\(.*\)", "", last_puzzle_post.content).strip()
-                await last_puzzle_post.edit(content=base_content + f" ({current_puzzle.percentageComplete}% complete)")
+                await last_puzzle_post.edit(
+                    content=(base_content
+                             + f" ({current_puzzle.percentageComplete}% complete)")
+                )
 
     client.register_responder(MessageResponder(
         lambda m: m.channel.id == puzzle_channel_id, respond_to_guesses))
