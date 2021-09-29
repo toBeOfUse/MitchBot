@@ -1,11 +1,24 @@
+import asyncio
 import json
 import math
 from io import BytesIO
 import re
+import sqlite3
 
 from tornado.httpclient import AsyncHTTPClient
 from PIL import Image, ImageDraw, ImageFont
 import discord
+
+words_db = sqlite3.connect("words.db")
+
+
+def get_word_frequency(word: str) -> int:
+    cur = words_db.cursor()
+    frequency = cur.execute(
+        "select frequency from words where word=?",
+        (word,)
+    ).fetchone()
+    return 0 if frequency is None else frequency[0]
 
 
 class Puzzle():
@@ -19,6 +32,8 @@ class Puzzle():
         self.outside = [l.upper() for l in outside]
         self.pangrams = set(p.lower() for p in pangrams)
         self.answers = set(a.lower() for a in answers)
+        for word in self.pangrams:
+            self.answers.add(word)
         self.gotten_words = set()
 
     def __eq__(self, other):
@@ -36,9 +51,8 @@ class Puzzle():
 
     def guess(self, word: str) -> int:
         """
-        determines whether a word counts for a point (i. e. is in `self.answers` and
-        hasn't been tried before) or is a pangram (that hasn't been guessed before.)
-        uses arbitrary constants defined on the class.
+        determines whether a word counts for a point and/or is a pangram. uses
+        arbitrary constants defined on the class.
         """
         w = word.lower()
         if self.is_pangram(w):
@@ -49,6 +63,13 @@ class Puzzle():
             return self.good_word
         else:
             return self.wrong_word
+
+    def get_unguessed_words(self) -> list[str]:
+        """returns the heretofore unguessed words in a list sorted from the least to
+        the most common words."""
+        unguessed = list(self.answers - self.gotten_words)
+        unguessed.sort(key=lambda w: get_word_frequency(w))
+        return unguessed
 
     @staticmethod
     def make_hexagon(width: int, height: int, tilted: bool = False) -> list[tuple[int, int]]:
@@ -164,3 +185,13 @@ class Puzzle():
                     await message.add_reaction(num_emojis[int(num_char)])
         if pangram:
             await message.add_reaction("🍳")
+
+
+async def test():
+    print("frequency of 'puzzle'", get_word_frequency("puzzle"))
+    print("today's words from least to most common:")
+    print((await Puzzle.fetch_from_nyt()).get_unguessed_words())
+
+
+if __name__ == "__main__":
+    asyncio.run(test())
