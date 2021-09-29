@@ -210,7 +210,7 @@ def schedule_tasks(client: MitchClient):
                                    "Guten Morgen"])+" ✨",
             file=discord.File(current_puzzle.render(), 'puzzle.png'))
 
-    repeatedly_schedule_task_for(fetch_new_puzzle_at, send_new_puzzle)
+    asyncio.create_task(repeatedly_schedule_task_for(fetch_new_puzzle_at, send_new_puzzle))
 
     async def respond_to_guesses(message: discord.Message):
         if current_puzzle is None:
