@@ -151,7 +151,7 @@ class MitchClient(discord.Client):
     # public interface for remote control voice and text chat control:
 
     def get_prompts(self):
-        prompts = open('prompts.txt', 'r')
+        prompts = open('text/prompts.txt', 'r')
         text = prompts.read()
         groups = re.split(r"\n+", text)
         prompts.close()
@@ -161,7 +161,7 @@ class MitchClient(discord.Client):
         prompts_string = '\n\n'.join([z.strip()
                                       for z in
                                       [' - '.join([y.strip() for y in x]) for x in prompts]])
-        txt = open('prompts.txt', 'w')
+        txt = open('text/prompts.txt', 'w')
         txt.write(prompts_string)
         txt.close()
         self.public_state['prompts'] = prompts

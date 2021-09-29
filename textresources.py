@@ -13,7 +13,7 @@ def choice_no_repeats(in_list):
         yield source.pop()
 
 
-with open("poetry.txt", encoding="utf-8") as poetry_file:
+with open("text/poetry.txt", encoding="utf-8") as poetry_file:
     raw_poems = poetry_file.read().split("\n---\n")
     poetry = [p.strip() for p in raw_poems if p.strip()]
 
