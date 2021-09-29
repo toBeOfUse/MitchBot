@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -30 60 60">
+    <polygon fill="#F7DA21FF"
+        points="-10.0,0.0 -5.0,-8.660254037844386 5.0,-8.660254037844386 10.0,0.0 5.0,8.660254037844386 -5.0,8.660254037844386" />
+    <polygon fill="#FFFFFF"
+        points="-10.0,-20.0 -5.0,-28.660254037844386 5.0,-28.660254037844386 10.0,-20.0 5.0,-11.339745962155614 -5.0,-11.339745962155614" />
+    <polygon fill="#FFFFFF"
+        points="-27.32050807568877,-10.0 -22.32050807568877,-18.660254037844386 -12.320508075688771,-18.660254037844386 -7.320508075688771,-10.0 -12.320508075688771,-1.3397459621556145 -22.32050807568877,-1.3397459621556145" />
+    <polygon fill="#FFFFFF"
+        points="-27.32050807568877,10.0 -22.32050807568877,1.3397459621556145 -12.320508075688771,1.3397459621556145 -7.320508075688771,10.0 -12.320508075688771,18.660254037844386 -22.32050807568877,18.660254037844386" />
+    <polygon fill="#FFFFFF"
+        points="-10.0,20.0 -5.0,11.339745962155614 5.0,11.339745962155614 10.0,20.0 5.0,28.660254037844386 -5.0,28.660254037844386" />
+    <polygon fill="#FFFFFF"
+        points="7.320508075688771,10.0 12.320508075688771,1.3397459621556145 22.32050807568877,1.3397459621556145 27.32050807568877,10.0 22.32050807568877,18.660254037844386 12.320508075688771,18.660254037844386" />
+    <polygon fill="#FFFFFF"
+        points="7.320508075688771,-10.0 12.320508075688771,-18.660254037844386 22.32050807568877,-18.660254037844386 27.32050807568877,-10.0 22.32050807568877,-1.3397459621556145 12.320508075688771,-1.3397459621556145" />
+    <text x="0" y="-20" fill="black" text-anchor="middle" dominant-baseline="central" font-family="LiberationSans" font-weight="bold"
+        font-size="7">%letter%</text>
+    <text x="-17.3" y="-10" fill="black" text-anchor="middle" dominant-baseline="central" font-family="LiberationSans" font-weight="bold"
+        font-size="7">%letter%</text>
+    <text x="-17.3" y="10" fill="black" text-anchor="middle" dominant-baseline="central" font-family="LiberationSans" font-weight="bold"
+        font-size="7">%letter%</text>
+    <text x="0" y="20" fill="black" text-anchor="middle" dominant-baseline="central" font-family="LiberationSans" font-weight="bold"
+        font-size="7">%letter%</text>
+    <text x="17.3" y="10" fill="black" text-anchor="middle" dominant-baseline="central" font-family="LiberationSans" font-weight="bold"
+        font-size="7">%letter%</text>
+    <text x="17.3" y="-10" fill="black" text-anchor="middle" dominant-baseline="central" font-family="LiberationSans" font-weight="bold"
+        font-size="7">%letter%</text>
+    <text x="0" y="0" fill="black" text-anchor="middle" dominant-baseline="central" font-family="LiberationSans" font-weight="bold"
+        font-size="7">%center%</text>
+</svg>
