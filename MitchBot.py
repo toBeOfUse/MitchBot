@@ -6,14 +6,11 @@ import re
 import subprocess
 import time
 from io import BytesIO
+import random
 
-# package dependencies
+# external package dependencies
 import discord
 from PIL import Image
-
-# project files
-# import speaker
-import textresources
 
 
 class ReactiveDict(dict):
@@ -68,11 +65,7 @@ class MessageResponder():
             return
         match = False
         if self.require_mention:
-            users_mentioned_by_role = []
-            for role in message.role_mentions:
-                for user in role.members:
-                    users_mentioned_by_role.append(user)
-            if not (message.guild.me in message.mentions or message.guild.me in users_mentioned_by_role):
+            if (not message.guild.me.mentioned_in(message)) or message.mention_everyone:
                 return
         if isinstance(self.condition, str):
             if re.search(self.condition, message.content, re.IGNORECASE):
@@ -133,7 +126,7 @@ class MitchClient(discord.Client):
     def register_responder(self, responder: MessageResponder):
         self.responses.append(responder)
 
-    async def on_message(self, message):
+    async def on_message(self, message: discord.Message):
         print(f'Message from {message.author}: {message.content}')
         if message.author == self.user:
             return
@@ -143,9 +136,11 @@ class MitchClient(discord.Client):
             if response.react_to(message):
                 responded = True
 
-        if not responded and self.user.mentioned_in(message):
-            poem = next(textresources.poetry_generator)
-            await message.reply(poem)
+        if not responded and self.user.mentioned_in(message) and not message.mention_everyone:
+            response = random.choice(
+                ["completely correct", "i'm afraid not", "i'm not too sure",
+                 "ik spreek geen engels", "only on tuesdays", "seize the means of production"])
+            await message.reply(response + ", "+message.author.display_name+".")
 
     async def on_disconnect(self):
         if self.vc:
