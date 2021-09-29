@@ -6,6 +6,7 @@ import json
 from datetime import time, datetime, timezone
 import inspect
 import random
+from typing import Callable
 
 import discord
 from tornado.httpclient import AsyncHTTPClient
@@ -149,7 +150,9 @@ class Puzzle():
                 game["answers"])
 
 
-async def do_thing_after(seconds, thing):
+async def do_thing_after(seconds: float, thing: Callable):
+    """Utility function to call a function or create a task for a coroutine in a
+    certain number of seconds"""
     print("scheduling", thing.__name__, "for", seconds, "seconds from now")
     await asyncio.sleep(seconds)
     if inspect.iscoroutinefunction(thing):
@@ -159,9 +162,11 @@ async def do_thing_after(seconds, thing):
 
 
 def get_seconds_before_next(time_of_day: time) -> float:
+    """Utility function to get the number of seconds before the next time a time of
+    day occurs in UTC"""
     now = datetime.now(tz=timezone.utc)
     print("it is currently", now)
-    if now.time().replace(tzinfo=timezone.utc) > time_of_day:
+    if now.time().replace(tzinfo=timezone.utc) >= time_of_day:
         next_puzzle_day = now.replace(day=now.day+1).date()
     else:
         next_puzzle_day = now.date()
@@ -171,12 +176,22 @@ def get_seconds_before_next(time_of_day: time) -> float:
     return result
 
 
+async def repeatedly_schedule_task_for(time_of_day: time, task: Callable) -> None:
+    """
+    Schedules a task (a function or coroutine) to be performed every day at
+    time_of_day in UTC.
+    """
+    waiting_time = get_seconds_before_next(time_of_day)
+    await do_thing_after(waiting_time, task)
+    await asyncio.sleep(10)  # just to make completely sure it doesn't get double called
+    asyncio.create_task(repeatedly_schedule_task_for(time_of_day, task))
+
+
 def schedule_tasks(client: MitchClient):
     channel_id = 814334169299157001  # production
     # channel_id = 888301952067325952  # test
     fetch_new_puzzle_at = time(hour=7+4, tzinfo=timezone.utc)  # 7am EDT
     # fetch_new_puzzle_at = time(hour=6, minute=32, tzinfo=timezone.utc)  # test
-    waiting_time = get_seconds_before_next(fetch_new_puzzle_at)
     current_puzzle = None
     last_puzzle_post = None
 
@@ -194,13 +209,8 @@ def schedule_tasks(client: MitchClient):
                                    "Here is a puzzle",
                                    "Guten Morgen"])+" ✨",
             file=discord.File(current_puzzle.render(), 'puzzle.png'))
-        await asyncio.sleep(100)  # just to be safe
-        asyncio.create_task(
-            do_thing_after(
-                get_seconds_before_next(fetch_new_puzzle_at),
-                send_new_puzzle))
 
-    asyncio.create_task(do_thing_after(waiting_time, send_new_puzzle))
+    repeatedly_schedule_task_for(fetch_new_puzzle_at, send_new_puzzle)
 
     async def respond_to_guesses(message: discord.Message):
         if current_puzzle is None:
