@@ -8,6 +8,7 @@ tornado = "*"
 pillow = "*"
 discord = "*"
 comtypes = "*"
+cairosvg = "*"
 
 [dev-packages]
 autopep8 = "*"
