@@ -96,9 +96,9 @@ class Puzzle():
     ) -> bytes:
         with open(template) as base_file:
             base_svg = base_file.read()
-        base_svg = base_svg.replace("%center%", self.center)
+        base_svg = base_svg.replace("$C", self.center)
         for letter in self.outside:
-            base_svg = base_svg.replace("%letter%", letter, 1)
+            base_svg = base_svg.replace("$L", letter, 1)
         # with open('images/rendertest.svg', "w+") as render_test:
         #     render_test.write(base_svg)
         return svg2png(base_svg, output_width=output_width)
