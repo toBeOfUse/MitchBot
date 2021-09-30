@@ -6,6 +6,8 @@ import sqlite3
 from typing import Optional
 import traceback
 from datetime import datetime
+from pathlib import Path
+import random
 
 from tornado.httpclient import AsyncHTTPClient
 from cairosvg import svg2png
@@ -87,12 +89,18 @@ class Puzzle():
         unguessed.sort(key=lambda w: get_word_frequency(w))
         return unguessed
 
-    def render(self, output_width: int = 600) -> bytes:
-        with open("images/puzzle_template_1.svg") as base_file:
+    def render(
+        self,
+        output_width: int = 600,
+        template=random.choice(list(Path("images").glob("puzzle_template_*.svg")))
+    ) -> bytes:
+        with open(template) as base_file:
             base_svg = base_file.read()
         base_svg = base_svg.replace("%center%", self.center)
         for letter in self.outside:
             base_svg = base_svg.replace("%letter%", letter, 1)
+        # with open('images/rendertest.svg', "w+") as render_test:
+        #     render_test.write(base_svg)
         return svg2png(base_svg, output_width=output_width)
 
     def associate_with_message(self, message: discord.Message):
