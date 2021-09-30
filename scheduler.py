@@ -1,9 +1,11 @@
 import asyncio
+from io import BytesIO
 import re
-from datetime import time, datetime, timezone
+from datetime import time, datetime, timedelta, timezone
 import inspect
 import random
 from typing import Callable, Optional
+import traceback
 
 import discord
 
@@ -28,7 +30,7 @@ def get_seconds_before_next(time_of_day: time) -> float:
     day occurs in UTC"""
     now = datetime.now(tz=timezone.utc)
     if now.time().replace(tzinfo=timezone.utc) >= time_of_day:
-        next_puzzle_day = now.replace(day=now.day+1).date()
+        next_puzzle_day = now.date()+timedelta(days=1)
     else:
         next_puzzle_day = now.date()
     next_puzzle_time = datetime.combine(next_puzzle_day, time_of_day)
@@ -50,11 +52,30 @@ async def repeatedly_schedule_task_for(time_of_day: time, task: Callable) -> Non
 def schedule_tasks(client: MitchClient):
     # puzzle scheduling:
     puzzle_channel_id = 814334169299157001  # production
-    # puzzle_channel_id = 888301952067325952  # test
+    puzzle_channel_id = 888301952067325952  # test
     fetch_new_puzzle_at = time(hour=7+4, tzinfo=timezone.utc)  # 7am EDT
-    # fetch_new_puzzle_at = time(hour=6, minute=32, tzinfo=timezone.utc)  # test
+    fetch_new_puzzle_at = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)
+                           ).time().replace(tzinfo=timezone.utc)  # test
     current_puzzle: Optional[Puzzle] = None
     last_puzzle_post: Optional[Puzzle] = None
+
+    async def load_puzzle():
+        await client.wait_until_ready()
+        nonlocal current_puzzle, last_puzzle_post
+        current_puzzle = Puzzle.retrieve_last_saved()
+        if current_puzzle is not None:
+            print("retrieved current puzzle from database")
+            try:
+                last_puzzle_post = await (client.get_channel(puzzle_channel_id)
+                                          .fetch_message(current_puzzle.message_id))
+                print("retrieved last puzzle post")
+            except:
+                print("could not retrieve last puzzle post")
+                traceback.print_exc()
+        else:
+            print("could not retrieve current puzzle from database")
+
+    asyncio.create_task(load_puzzle())
 
     async def send_new_puzzle():
         nonlocal current_puzzle, last_puzzle_post
@@ -70,14 +91,16 @@ def schedule_tasks(client: MitchClient):
                                    "Bleep Bloop",
                                    "Here is a puzzle",
                                    "Guten Morgen"])+" ✨",
-            file=discord.File(current_puzzle.render(), 'puzzle.png'))
+            file=discord.File(BytesIO(current_puzzle.render()), 'puzzle.png'))
+        current_puzzle.associate_with_message(last_puzzle_post)
+        current_puzzle.save()
         if previous_puzzle:
             previous_words = previous_puzzle.get_unguessed_words()
             if len(previous_words) > 1:
                 await client.get_channel(puzzle_channel_id).send(
                     "(The least common word that no one got for yesterday's "
-                    + f"puzzle was {previous_words[0]}; "
-                    + f"the most common word was {previous_words[-1]}.)"
+                    + f"puzzle was \"{previous_words[0]}\"; "
+                    + f"the most common word was \"{previous_words[-1]}\".)"
                 )
 
     asyncio.create_task(repeatedly_schedule_task_for(fetch_new_puzzle_at, send_new_puzzle))
