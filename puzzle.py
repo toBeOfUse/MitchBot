@@ -3,13 +3,16 @@ from io import BytesIO
 import json
 import re
 import sqlite3
-from PIL import Image
+from typing import Optional
+import traceback
+from datetime import datetime
 
 from tornado.httpclient import AsyncHTTPClient
 from cairosvg import svg2png
 import discord
+from PIL import Image
 
-words_db = sqlite3.connect("words.db")
+words_db = sqlite3.connect("db/words.db")
 
 
 def get_word_frequency(word: str) -> int:
@@ -27,14 +30,25 @@ class Puzzle():
     good_word = 2
     pangram = 3
 
-    def __init__(self, center: str, outside: list[str], pangrams: list[str], answers: list[str]):
+    def __init__(
+            self,
+            originally_loaded: int,
+            center: str,
+            outside: list[str],
+            pangrams: list[str],
+            answers: list[str],
+            gotten_words: set = set(),
+            db: str = "db/puzzles.db"):
+        self.timestamp = originally_loaded
         self.center = center.upper()
         self.outside = [l.upper() for l in outside]
         self.pangrams = set(p.lower() for p in pangrams)
         self.answers = set(a.lower() for a in answers)
         for word in self.pangrams:
-            self.answers.add(word)
-        self.gotten_words = set()
+            self.answers.add(word)  # shouldn't be necessary but just in case
+        self.gotten_words = set(w.lower() for w in gotten_words)
+        self.db = db
+        self.message_id = -1
 
     def __eq__(self, other):
         return self.center+self.outside == other.center+other.outside
@@ -57,9 +71,11 @@ class Puzzle():
         w = word.lower()
         if self.is_pangram(w):
             self.gotten_words.add(w)
+            self.save()
             return self.pangram
         elif self.does_word_count(w):
             self.gotten_words.add(w)
+            self.save()
             return self.good_word
         else:
             return self.wrong_word
@@ -79,6 +95,9 @@ class Puzzle():
             base_svg = base_svg.replace("%letter%", letter, 1)
         return svg2png(base_svg, output_width=output_width)
 
+    def associate_with_message(self, message: discord.Message):
+        self.message_id = message.id
+
     @classmethod
     async def fetch_from_nyt(cls) -> "Puzzle":
         client = AsyncHTTPClient()
@@ -88,6 +107,7 @@ class Puzzle():
         if game_data:
             game = json.loads(game_data.group(1))["today"]
             return cls(
+                int(datetime.now().timestamp()),
                 game["centerLetter"],
                 game["outerLetters"],
                 game["pangrams"],
@@ -116,12 +136,63 @@ class Puzzle():
         if pangram:
             await message.add_reaction("🍳")
 
+    def save(self):
+        db = sqlite3.connect(self.db)
+        cur = db.cursor()
+        cur.execute("""create table if not exists puzzles
+            (timestamp integer primary key, message_id integer, center text, outside text,
+            pangrams text, answers text, gotten_words text);""")
+        cur.execute("""create index if not exists chrono on puzzles (timestamp desc);""")
+        cur.execute(
+            """insert or replace into puzzles
+            (timestamp, message_id, center, outside, pangrams, answers, gotten_words)
+            values (?, ?, ?, ?, ?, ?, ?)""",
+            (self.timestamp, self.message_id, self.center, json.dumps(list(self.outside)),
+             json.dumps(list(self.pangrams)),
+             json.dumps(list(self.answers)),
+             json.dumps(list(self.gotten_words))))
+        db.commit()
+        db.close()
+
+    @classmethod
+    def retrieve_last_saved(cls, db: str = "db/puzzles.db") -> Optional["Puzzle"]:
+        db = sqlite3.connect(db)
+        cur = db.cursor()
+        try:
+            latest = cur.execute("""select 
+                timestamp, message_id, center, outside, pangrams, answers, gotten_words
+                from puzzles order by timestamp desc limit 1""").fetchone()
+            if latest is None:
+                db.close()
+                return None
+            else:
+                db.close()
+                loaded_puzzle = cls(latest[0], latest[2], *[json.loads(x) for x in latest[3:]])
+                loaded_puzzle.message_id = latest[1]
+                return loaded_puzzle
+        except:
+            print("couldn't load latest puzzle from database")
+            traceback.print_exc()
+            db.close()
+            return None
+
 
 async def test():
     print("frequency of 'puzzle'", get_word_frequency("puzzle"))
-    puzzle = await Puzzle.fetch_from_nyt()
+    saved_puzzle = Puzzle.retrieve_last_saved("db/testpuzzles.db")
+    if saved_puzzle is None:
+        print("fetching puzzle from nyt")
+        puzzle = await Puzzle.fetch_from_nyt()
+    else:
+        print("retrieving puzzle from db")
+        puzzle = saved_puzzle
     print("today's words from least to most common:")
     print(puzzle.get_unguessed_words())
+    answers = iter(puzzle.answers)
+    puzzle.guess(next(answers))
+    puzzle.guess(next(answers))
+    puzzle.db = "db/testpuzzles.db"
+    puzzle.save()
     rendered = puzzle.render()
     Image.open(BytesIO(rendered)).show()
 
