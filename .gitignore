@@ -4,3 +4,5 @@ login_token.txt
 __pycache__/*
 static/html/*.html
 venv/*
+puzzles.db
+testpuzzles.db
