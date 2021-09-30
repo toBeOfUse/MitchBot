@@ -89,7 +89,8 @@ def schedule_tasks(client: MitchClient):
                 base_content = re.sub("\(.*\)", "", last_puzzle_post.content).strip()
                 await last_puzzle_post.edit(
                     content=(base_content
-                             + f" ({current_puzzle.percentageComplete}% complete)")
+                             + f" ({current_puzzle.percentageComplete}% complete)"
+                             )
                 )
 
     client.register_responder(MessageResponder(

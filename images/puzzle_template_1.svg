@@ -1,17 +1,33 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -30 60 60">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-40 -40 80 80">
+    <g transform="translate(0,106.45023)" id="layer1">
+        <path transform="matrix(-0.49402241,1.8437167,-1.8423525,-0.49365687,-148.25364,-122.49981)"
+            d="M 6.0386711,-66.853696 -11.980664,-56.450228 -30,-66.853696 -30,-87.660632 -11.980664,-98.0641 6.0386708,-87.660633 Z" id="path821"
+            style="opacity:1;fill:#ffffff;fill-opacity:0.43999999;stroke:#6e6e6e;stroke-width:0.26499999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+        <path
+            style="opacity:1;fill:#ffffff;fill-opacity:0.43999999;stroke:#6e6e6e;stroke-width:0.26499999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+            id="path823" d="M 6.0386711,-66.853696 -11.980664,-56.450228 -30,-66.853696 -30,-87.660632 -11.980664,-98.0641 6.0386708,-87.660633 Z"
+            transform="matrix(-0.95437802,1.6530312,-1.6518081,-0.95367186,-139.0481,-160.3238)" />
+        <path transform="matrix(-1.3496943,1.3496943,-1.3486957,-1.3486957,-120.36664,-194.4764)"
+            d="M 6.0386711,-66.853696 -11.980664,-56.450228 -30,-66.853696 -30,-87.660632 -11.980664,-98.0641 6.0386708,-87.660633 Z" id="path825"
+            style="opacity:1;fill:#ffffff;fill-opacity:0.43999999;stroke:#6e6e6e;stroke-width:0.26499999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+        <path
+            style="opacity:1;fill:#ffffff;fill-opacity:0.43999999;stroke:#111111;stroke-width:0.26499999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+            id="path827" d="M 6.0386711,-66.853696 -11.980664,-56.450228 -30,-66.853696 -30,-87.660632 -11.980664,-98.0641 6.0386708,-87.660633 Z"
+            transform="matrix(-1.6530312,0.95437802,-0.95367189,-1.6518081,-93.482397,-222.63016)" />
+    </g>
     <polygon fill="#F7DA21FF"
         points="-10.0,0.0 -5.0,-8.660254037844386 5.0,-8.660254037844386 10.0,0.0 5.0,8.660254037844386 -5.0,8.660254037844386" />
-    <polygon fill="#FFFFFF"
+    <polygon fill="#E6E6E6"
         points="-10.0,-20.0 -5.0,-28.660254037844386 5.0,-28.660254037844386 10.0,-20.0 5.0,-11.339745962155614 -5.0,-11.339745962155614" />
-    <polygon fill="#FFFFFF"
+    <polygon fill="#E6E6E6"
         points="-27.32050807568877,-10.0 -22.32050807568877,-18.660254037844386 -12.320508075688771,-18.660254037844386 -7.320508075688771,-10.0 -12.320508075688771,-1.3397459621556145 -22.32050807568877,-1.3397459621556145" />
-    <polygon fill="#FFFFFF"
+    <polygon fill="#E6E6E6"
         points="-27.32050807568877,10.0 -22.32050807568877,1.3397459621556145 -12.320508075688771,1.3397459621556145 -7.320508075688771,10.0 -12.320508075688771,18.660254037844386 -22.32050807568877,18.660254037844386" />
-    <polygon fill="#FFFFFF"
+    <polygon fill="#E6E6E6"
         points="-10.0,20.0 -5.0,11.339745962155614 5.0,11.339745962155614 10.0,20.0 5.0,28.660254037844386 -5.0,28.660254037844386" />
-    <polygon fill="#FFFFFF"
+    <polygon fill="#E6E6E6"
         points="7.320508075688771,10.0 12.320508075688771,1.3397459621556145 22.32050807568877,1.3397459621556145 27.32050807568877,10.0 22.32050807568877,18.660254037844386 12.320508075688771,18.660254037844386" />
-    <polygon fill="#FFFFFF"
+    <polygon fill="#E6E6E6"
         points="7.320508075688771,-10.0 12.320508075688771,-18.660254037844386 22.32050807568877,-18.660254037844386 27.32050807568877,-10.0 22.32050807568877,-1.3397459621556145 12.320508075688771,-1.3397459621556145" />
     <text x="0" y="-20" fill="black" text-anchor="middle" dominant-baseline="central" font-family="LiberationSans" font-weight="bold"
         font-size="7">%letter%</text>

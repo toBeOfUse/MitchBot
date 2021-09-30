@@ -72,7 +72,7 @@ class Puzzle():
         return unguessed
 
     def render(self, output_width: int = 600) -> bytes:
-        with open("images/puzzle_bg_1.svg") as base_file:
+        with open("images/puzzle_template_1.svg") as base_file:
             base_svg = base_file.read()
         base_svg = base_svg.replace("%center%", self.center)
         for letter in self.outside:
