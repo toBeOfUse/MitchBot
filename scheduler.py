@@ -52,10 +52,10 @@ async def repeatedly_schedule_task_for(time_of_day: time, task: Callable) -> Non
 def schedule_tasks(client: MitchClient):
     # puzzle scheduling:
     puzzle_channel_id = 814334169299157001  # production
-    puzzle_channel_id = 888301952067325952  # test
+    # puzzle_channel_id = 888301952067325952  # test
     fetch_new_puzzle_at = time(hour=7+4, tzinfo=timezone.utc)  # 7am EDT
-    fetch_new_puzzle_at = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)
-                           ).time().replace(tzinfo=timezone.utc)  # test
+    # fetch_new_puzzle_at = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)
+    #                        ).time().replace(tzinfo=timezone.utc)  # test
     current_puzzle: Optional[Puzzle] = None
     last_puzzle_post: Optional[Puzzle] = None
 
