@@ -2,5 +2,6 @@
     "python.formatting.provider": "autopep8",
     "cSpell.words": [
         "unguessed"
-    ]
+    ],
+    "svg.preview.background": "transparent"
 }

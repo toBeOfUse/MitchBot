@@ -107,7 +107,7 @@ def schedule_tasks(client: MitchClient):
 
 
 async def test():
-    (await Puzzle.fetch_from_nyt()).render()
+    pass
 
 if __name__ == "__main__":
     asyncio.run(test())
