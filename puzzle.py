@@ -201,7 +201,7 @@ async def test():
     puzzle.guess(next(answers))
     puzzle.db = "db/testpuzzles.db"
     puzzle.save()
-    rendered = puzzle.render(template="images/puzzle_template_3.svg")
+    rendered = puzzle.render(template="images/puzzle_template_4.svg")
     Image.open(BytesIO(rendered)).show()
 
 
