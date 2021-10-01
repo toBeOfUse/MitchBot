@@ -91,7 +91,7 @@ class Puzzle():
 
     def render(
         self,
-        output_width: int = 600,
+        output_width: int = 1200,
         template=random.choice(list(Path("images").glob("puzzle_template_*.svg")))
     ) -> bytes:
         with open(template) as base_file:
