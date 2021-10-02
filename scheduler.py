@@ -132,7 +132,7 @@ def schedule_tasks(client: MitchClient):
                 # remove old reactions
                 for reaction in after.reactions:
                     if reaction.me:
-                        reaction.remove(client)
+                        await reaction.remove(client)
                 # replace with new ones
                 await respond_to_guesses(after)
 
