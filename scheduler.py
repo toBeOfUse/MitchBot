@@ -108,16 +108,20 @@ def schedule_tasks(client: MitchClient):
     async def respond_to_guesses(message: discord.Message):
         if current_puzzle is not None:
             await current_puzzle.respond_to_guesses(message)
-            if current_puzzle.percentageComplete > 0 and last_puzzle_post is not None:
-                base_content = re.sub("\(.*\)", "", last_puzzle_post.content).strip()
-                await last_puzzle_post.edit(
-                    content=(base_content
-                             + f" ({current_puzzle.percentageComplete}% complete)"
-                             )
-                )
 
     client.register_responder(MessageResponder(
         lambda m: m.channel.id == puzzle_channel_id, respond_to_guesses))
+
+    @client.event
+    async def on_message_edit(before: discord.Message, after: discord.Message):
+        if after.channel.id == puzzle_channel_id:
+            if before.content != after.content:
+                # remove old reactions
+                for reaction in after.reactions:
+                    if reaction.me:
+                        reaction.remove(client)
+                # replace with new ones
+                await respond_to_guesses(after)
 
     # poetry scheduling:
 
