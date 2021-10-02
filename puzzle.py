@@ -8,6 +8,7 @@ import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 import random
+from timeit import default_timer as timer
 
 from tornado.httpclient import AsyncHTTPClient
 from cairosvg import svg2png
@@ -24,6 +25,12 @@ def get_word_frequency(word: str) -> int:
         (word,)
     ).fetchone()
     return 0 if frequency is None else frequency[0]
+
+
+wiktionary_words: list[str] = []
+with open("db/all-wiktionary-english-words.txt", encoding="utf-8") as wiktionary_file:
+    for line in wiktionary_file:
+        wiktionary_words.append(line.strip())
 
 
 class Puzzle():
@@ -97,6 +104,36 @@ class Puzzle():
         unguessed = list(self.answers - self.gotten_words)
         unguessed.sort(key=lambda w: get_word_frequency(w))
         return unguessed
+
+    def get_wiktionary_alternative_answers(self) -> list[str]:
+        """
+        Returns the words that use the required letters and are english words
+        according to Wiktionary (according to data obtained by
+        https://github.com/tatuylonen/wiktextract) but aren't in the official answers
+        list
+        """
+        start = timer()
+        result = []
+        for word in wiktionary_words:
+            if self.center not in word.upper():
+                continue
+            if len(word) < 4:
+                continue
+            if word.lower() in self.answers:
+                continue
+            if word.lower() != word:
+                continue
+            characters_count = True
+            for character in word:
+                if character.upper() not in (self.outside + [self.center]):
+                    characters_count = False
+                    break
+            if not characters_count:
+                continue
+            result.append(word)
+        end = timer()
+        print("obtaining wiktionary words took", round((end-start)*1000, 2), "ms")
+        return result
 
     def render(
         self,
@@ -235,10 +272,10 @@ async def test():
     print(puzzle.get_unguessed_words())
     answers = iter(puzzle.answers)
     puzzle.guess(next(answers))
-    puzzle.guess(next(answers))
-    puzzle.db = "db/testpuzzles.db"
-    puzzle.save()
-    rendered = puzzle.render(template="images/puzzle_template_2.svg")
+    print("words that the nyt doesn't want us to know about:")
+    print(puzzle.get_wiktionary_alternative_answers())
+    puzzle.save("db/testpuzzles.db")
+    rendered = puzzle.render()
     Image.open(BytesIO(rendered)).show()
 
 

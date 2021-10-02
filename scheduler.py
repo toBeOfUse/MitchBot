@@ -54,8 +54,8 @@ def schedule_tasks(client: MitchClient):
     puzzle_channel_id = 814334169299157001  # production
     puzzle_channel_id = 888301952067325952  # test
     fetch_new_puzzle_at = time(hour=7+4, tzinfo=timezone.utc)  # 7am EDT
-    # fetch_new_puzzle_at = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)
-    #                        ).time().replace(tzinfo=timezone.utc)  # test
+    fetch_new_puzzle_at = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)
+                           ).time().replace(tzinfo=timezone.utc)  # test
     current_puzzle: Optional[Puzzle] = None
 
     async def load_puzzle():
@@ -83,23 +83,33 @@ def schedule_tasks(client: MitchClient):
         nonlocal current_puzzle
         previous_puzzle = current_puzzle
         current_puzzle = await Puzzle.fetch_from_nyt()
-        last_puzzle_post = await client.get_channel(puzzle_channel_id).send(
-            content=random.choice(["Good morning",
-                                   "Goedemorgen",
-                                   "Bon matin",
-                                   "Ohayō",
-                                   "Back at it again at Krispy Kremes",
-                                   "Hello",
-                                   "Bleep Bloop",
-                                   "Here is a puzzle",
-                                   "Guten Morgen"])+" ✨",
+        channel: discord.TextChannel = client.get_channel(puzzle_channel_id)
+        message_text = random.choice(["Good morning",
+                                      "Goedemorgen",
+                                      "Bon matin",
+                                      "Ohayō",
+                                      "Back at it again at Krispy Kremes",
+                                      "Hello",
+                                      "Bleep Bloop",
+                                      "Here is a puzzle",
+                                      "Guten Morgen"])+" ✨"
+        alt_words = current_puzzle.get_wiktionary_alternative_answers()
+        if len(alt_words) > 1:
+            alt_words_sample = random.sample(alt_words, 10)
+            alt_words_string = (", ".join(alt_words_sample[:-1]) +
+                                " and "+alt_words_sample[-1]+".")
+            message_text += (
+                " Words from Wiktionary that should count today but that " +
+                "the NYT fails to acknowledge include: " + alt_words_string)
+        last_puzzle_post = await channel.send(
+            content=message_text,
             file=discord.File(BytesIO(current_puzzle.render()), 'puzzle.png'))
         current_puzzle.associate_with_message(last_puzzle_post)
         current_puzzle.save()
         if previous_puzzle:
             previous_words = previous_puzzle.get_unguessed_words()
             if len(previous_words) > 1:
-                await client.get_channel(puzzle_channel_id).send(
+                await channel.send(
                     "(The least common word that no one got for yesterday's "
                     + f"puzzle was \"{previous_words[0]}\"; "
                     + f"the most common word was \"{previous_words[-1]}\".)"
