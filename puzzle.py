@@ -5,7 +5,7 @@ import re
 import sqlite3
 from typing import Optional
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import random
 
@@ -27,6 +27,16 @@ def get_word_frequency(word: str) -> int:
 
 
 class Puzzle():
+    """
+    Instance of an NYT Spelling Bee puzzle. The puzzle consists of 6 outer letters
+    and one central letter; players must use the central letter and any of the outer
+    letters to create words that are at least 4 letters long. At least one "pangram,"
+    a word that uses every letter, can be formed. This class stores the necessary
+    data to represent the puzzle and judge answers, has serialization mechanisms to
+    save the puzzle and the answers that have come in so far in a simple SQLite
+    database, can render itself to a PNG, and includes a functions to allow it to
+    interact with discord Message objects.
+    """
     # constants returned by `guess(word)`:
     wrong_word = 1
     good_word = 2
@@ -39,8 +49,7 @@ class Puzzle():
             outside: list[str],
             pangrams: list[str],
             answers: list[str],
-            gotten_words: set = set(),
-            db: str = "db/puzzles.db"):
+            gotten_words: set = set()):
         self.timestamp = originally_loaded
         self.center = center.upper()
         self.outside = [l.upper() for l in outside]
@@ -49,8 +58,8 @@ class Puzzle():
         for word in self.pangrams:
             self.answers.add(word)  # shouldn't be necessary but just in case
         self.gotten_words = set(w.lower() for w in gotten_words)
-        self.db = db
-        self.message_id = -1
+        self.message_id: int = -1
+        self.message: Optional[discord.Message] = None
 
     def __eq__(self, other):
         return self.center+self.outside == other.center+other.outside
@@ -104,6 +113,13 @@ class Puzzle():
         return svg2png(base_svg, output_width=output_width)
 
     def associate_with_message(self, message: discord.Message):
+        """The message that was most recently passed to this function will be edited
+        to append percentage completeness updates to it as guesses come in. WARNING:
+        parenthesized content in the message text will not survive such an update.
+        The message's id will be serialized by the `save()` function and can be used
+        to retrieve the message itself for Puzzles loaded through
+        `retrieve_last_saved`."""
+        self.message = message
         self.message_id = message.id
 
     @classmethod
@@ -143,9 +159,17 @@ class Puzzle():
                     await message.add_reaction(num_emojis[int(num_char)])
         if pangram:
             await message.add_reaction("🍳")
+        if self.percentageComplete > 0 and self.message is not None:
+            base_content = re.sub("\(.*\)", "", self.message.content).strip()
+            await self.message.edit(
+                content=(base_content
+                         + f" ({self.percentageComplete}% complete)"
+                         )
+            )
 
-    def save(self):
-        db = sqlite3.connect(self.db)
+    def save(self, db_path="db/puzzles.db"):
+        """Serializes the puzzle and saves it in a SQLite database."""
+        db = sqlite3.connect(db_path)
         cur = db.cursor()
         cur.execute("""create table if not exists puzzles
             (timestamp integer primary key, message_id integer, center text, outside text,
@@ -163,8 +187,13 @@ class Puzzle():
         db.close()
 
     @classmethod
-    def retrieve_last_saved(cls, db: str = "db/puzzles.db") -> Optional["Puzzle"]:
-        db = sqlite3.connect(db)
+    def retrieve_last_saved(cls, db_path: str = "db/puzzles.db") -> Optional["Puzzle"]:
+        """Retrieves the most recently saved puzzle from the SQLite database. The
+        only thing lost through serialization is the self.message instance variable,
+        which stores an object of type discord.Message, which needs to be retrieved
+        by a discord client and passed to associate_with_message in order for said
+        message to be updated with completion information upon future guesses."""
+        db = sqlite3.connect(db_path)
         cur = db.cursor()
         try:
             latest = cur.execute("""select 
@@ -194,6 +223,14 @@ async def test():
     else:
         print("retrieving puzzle from db")
         puzzle = saved_puzzle
+        if (datetime.now()
+            - datetime.fromtimestamp(puzzle.timestamp)
+                > timedelta(days=1)):
+            print("puzzle from db was old, replacing it with current NYT one")
+            puzzle = await Puzzle.fetch_from_nyt()
+        else:
+            print("puzzle from db is",
+                  datetime.now() - datetime.fromtimestamp(puzzle.timestamp), "old")
     print("today's words from least to most common:")
     print(puzzle.get_unguessed_words())
     answers = iter(puzzle.answers)
@@ -201,7 +238,7 @@ async def test():
     puzzle.guess(next(answers))
     puzzle.db = "db/testpuzzles.db"
     puzzle.save()
-    rendered = puzzle.render(template="images/puzzle_template_4.svg")
+    rendered = puzzle.render(template="images/puzzle_template_2.svg")
     Image.open(BytesIO(rendered)).show()
 
 

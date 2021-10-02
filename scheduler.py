@@ -52,22 +52,24 @@ async def repeatedly_schedule_task_for(time_of_day: time, task: Callable) -> Non
 def schedule_tasks(client: MitchClient):
     # puzzle scheduling:
     puzzle_channel_id = 814334169299157001  # production
-    # puzzle_channel_id = 888301952067325952  # test
+    puzzle_channel_id = 888301952067325952  # test
     fetch_new_puzzle_at = time(hour=7+4, tzinfo=timezone.utc)  # 7am EDT
     # fetch_new_puzzle_at = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)
     #                        ).time().replace(tzinfo=timezone.utc)  # test
     current_puzzle: Optional[Puzzle] = None
-    last_puzzle_post: Optional[Puzzle] = None
 
     async def load_puzzle():
         await client.wait_until_ready()
-        nonlocal current_puzzle, last_puzzle_post
+        nonlocal current_puzzle
         current_puzzle = Puzzle.retrieve_last_saved()
         if current_puzzle is not None:
             print("retrieved current puzzle from database")
             try:
+                if current_puzzle.message_id == -1:
+                    raise ValueError("Puzzle from DB did not have message ID")
                 last_puzzle_post = await (client.get_channel(puzzle_channel_id)
                                           .fetch_message(current_puzzle.message_id))
+                current_puzzle.associate_with_message(last_puzzle_post)
                 print("retrieved last puzzle post")
             except:
                 print("could not retrieve last puzzle post")
@@ -78,7 +80,7 @@ def schedule_tasks(client: MitchClient):
     asyncio.create_task(load_puzzle())
 
     async def send_new_puzzle():
-        nonlocal current_puzzle, last_puzzle_post
+        nonlocal current_puzzle
         previous_puzzle = current_puzzle
         current_puzzle = await Puzzle.fetch_from_nyt()
         last_puzzle_post = await client.get_channel(puzzle_channel_id).send(
@@ -105,6 +107,7 @@ def schedule_tasks(client: MitchClient):
 
     asyncio.create_task(repeatedly_schedule_task_for(fetch_new_puzzle_at, send_new_puzzle))
 
+    # kind of a cheat to have these next two things in scheduler.py. but.
     async def respond_to_guesses(message: discord.Message):
         if current_puzzle is not None:
             await current_puzzle.respond_to_guesses(message)
