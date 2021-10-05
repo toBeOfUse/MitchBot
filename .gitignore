@@ -6,3 +6,4 @@ static/html/*.html
 venv/*
 puzzles.db
 testpuzzles.db
+*.exe
