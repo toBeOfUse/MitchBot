@@ -13,7 +13,7 @@ struct TrieLink {
     long byte_offset;
 } _link;
 
-void searchTrie(const char* base, long offset, char word_so_far[32],
+void search_trie(const char* base, long offset, char word_so_far[32],
     int word_so_far_length, char* results, int* results_length,
     const char* eligible_indexes)
 {
@@ -34,7 +34,7 @@ void searchTrie(const char* base, long offset, char word_so_far[32],
                 strcpy(new_word_so_far, word_so_far);
                 new_word_so_far[word_so_far_length] = link->letter;
                 new_word_so_far[word_so_far_length + 1] = 0;
-                searchTrie(base, link->byte_offset, new_word_so_far,
+                search_trie(base, link->byte_offset, new_word_so_far,
                     word_so_far_length + 1, results, results_length,
                     eligible_indexes);
             }
@@ -49,7 +49,33 @@ const char* search_words(
     char word_so_far[32];
     word_so_far[0] = 0;
     int results_length = 0;
-    searchTrie(trie_buffer, 0, word_so_far, 0, results, &results_length,
+    search_trie(trie_buffer, 0, word_so_far, 0, results, &results_length,
         eligible_characters);
     return results;
+}
+
+void main()
+{
+    // test
+    FILE* trie_file = fopen("../wiktionary-trie.bin", "rb");
+
+    fseek(trie_file, 0L, SEEK_END);
+    long sz = ftell(trie_file);
+    rewind(trie_file);
+
+    char* nodes = malloc(sz);
+    size_t result = fread((void*)nodes, 1, sz, trie_file);
+    fclose(trie_file);
+
+    char* results = malloc(10000);
+    char word_so_far[32];
+    word_so_far[0] = 0;
+    int results_length = 0;
+    search_trie(nodes, 0, word_so_far, 0, results, &results_length, "flichng");
+    printf("results found: %d\n", results_length);
+    for (int i = 0; i < results_length; i++) {
+        putchar(results[i]);
+    }
+    free(nodes);
+    free(results);
 }
