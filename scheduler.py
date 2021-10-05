@@ -95,7 +95,7 @@ def schedule_tasks(client: MitchClient):
                                       "Guten Morgen"])+" ✨"
         alt_words = current_puzzle.get_wiktionary_alternative_answers()
         if len(alt_words) > 1:
-            alt_words_sample = random.sample(alt_words, min(len(alt_words), 10))
+            alt_words_sample = random.sample(alt_words, min(len(alt_words), 5))
             alt_words_string = (", ".join(alt_words_sample[:-1]) +
                                 " and "+alt_words_sample[-1]+".")
             message_text += (
