@@ -9,7 +9,6 @@ pillow = "*"
 discord = "*"
 comtypes = "*"
 cairosvg = "*"
-sortedcontainers = "*"
 
 [dev-packages]
 autopep8 = "*"
