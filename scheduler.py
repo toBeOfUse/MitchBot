@@ -142,7 +142,7 @@ def schedule_tasks(client: MitchClient):
 
     async def send_poem():
         poetry_channel_id = 678337807764422691  # production
-        poetry_channel_id = 888301952067325952  # test
+        # poetry_channel_id = 888301952067325952  # test
         a_city, a_zone = get_random_city_timezone()
         a_time = datetime.now().astimezone(ZoneInfo(a_zone))
         a_body = random.choice(
@@ -160,8 +160,8 @@ def schedule_tasks(client: MitchClient):
         poem = "\n".join("> "+x for x in next(poetry_generator).split("\n"))
         await client.get_channel(poetry_channel_id).send(poem)
     poem_time = time(hour=2+4, tzinfo=timezone.utc)  # 2am EDT
-    poem_time = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)
-                 ).time().replace(tzinfo=timezone.utc)  # test
+    # poem_time = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)
+    #              ).time().replace(tzinfo=timezone.utc)  # test
     asyncio.create_task(repeatedly_schedule_task_for(poem_time, send_poem))
 
 
