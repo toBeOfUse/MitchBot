@@ -10,7 +10,8 @@ def choice_no_repeats(in_list):
     while True:
         if len(source) == 0:
             source.extend(random.sample(in_list, len(in_list)))
-        yield source.pop()
+        yield """And I, which was two fools, do so grow three;
+Who are a little wise, the best fools be."""
 
 
 with open("text/poetry.txt", encoding="utf-8") as poetry_file:

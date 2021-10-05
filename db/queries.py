@@ -9,6 +9,8 @@ from typing import Optional
 from io import BytesIO
 import traceback
 from timeit import default_timer as timer
+from timezonefinder import TimezoneFinder
+from zoneinfo import ZoneInfo
 import cython
 # the python import system is bad
 try:
@@ -29,6 +31,19 @@ def get_word_frequency(word: str) -> int:
         (word,)
     ).fetchone()
     return 0 if frequency is None else frequency[0]
+
+
+cities_db = sqlite3.connect("db/cities.db")
+
+
+def get_random_city_timezone() -> tuple[str, str]:
+    cur = cities_db.cursor()
+    random_city = cur.execute(
+        "select city, longitude, latitude from location " +
+        "order by random() limit 1").fetchone()
+    finder = TimezoneFinder()
+    zone = finder.timezone_at(lng=random_city[1], lat=random_city[2])
+    return (random_city[0], zone)
 
 
 class TrieNode():

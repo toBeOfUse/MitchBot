@@ -8,10 +8,12 @@ from typing import Callable, Optional
 import traceback
 
 import discord
+from zoneinfo import ZoneInfo
 
 from MitchBot import MessageResponder, MitchClient
 from textresources import poetry_generator
 from puzzle import Puzzle
+from db.queries import get_random_city_timezone
 
 
 async def do_thing_after(seconds: float, thing: Callable):
@@ -140,9 +142,26 @@ def schedule_tasks(client: MitchClient):
 
     async def send_poem():
         poetry_channel_id = 678337807764422691  # production
-        # poetry_channel_id = 888301952067325952  # test
-        await client.get_channel(poetry_channel_id).send(next(poetry_generator))
+        poetry_channel_id = 888301952067325952  # test
+        a_city, a_zone = get_random_city_timezone()
+        a_time = datetime.now().astimezone(ZoneInfo(a_zone))
+        a_body = random.choice(
+            ["Mercury", "Venus", "Mars", "Earth", "Jupiter", "Saturn", "Neptune", "Pluto",
+             "Cassiopeia", "Ceres", "Charon", "Ganymede", "The ISS", "Alpha Centauri",
+             "The Sombrero Galaxy", "The Tadpole Galaxy", "Hoag's Object"])
+        a_state = random.choice(
+            ["retrograde", "intrograde", "prograde", "astrograde", "interrograde", "terragrade",
+             "peltagrade", "fluxigrade", "axigrade", "centigrade", "tardigrade", "upgrade",
+             "degrade", "orthograde", "fermigrade"])
+        prelude = ("Good evening. " +
+                   f"It's {int(a_time.strftime('%I'))}:{a_time.strftime('%M %p')} " +
+                   f"in {a_city}. {a_body} is in {a_state}. Tonight's fortune is:")
+        await client.get_channel(poetry_channel_id).send(prelude)
+        poem = "\n".join("> "+x for x in next(poetry_generator).split("\n"))
+        await client.get_channel(poetry_channel_id).send(poem)
     poem_time = time(hour=2+4, tzinfo=timezone.utc)  # 2am EDT
+    poem_time = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)
+                 ).time().replace(tzinfo=timezone.utc)  # test
     asyncio.create_task(repeatedly_schedule_task_for(poem_time, send_poem))
 
 
