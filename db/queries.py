@@ -1,8 +1,16 @@
+"""
+Allows Python code to access the word frequency and wiktionary words databases (which
+are in SQLite and bespoke trie database forms, respectively.)
+"""
+
 import sqlite3
 import struct
 from typing import Optional
 from io import BytesIO
 import traceback
+from timeit import default_timer as timer
+import cython
+import trieparse
 
 words_db = sqlite3.connect("db/words.db")
 
@@ -158,10 +166,9 @@ class Trie():
             search_node(self.root, "")
             return result
         else:
-            result = set()
-
-            # TODO: call C function
-
+            raw_result: bytes = trieparse.search(
+                self.buffer, "".join(eligible_characters).encode("ascii"))
+            result = set(raw_result.decode("ascii").split())
             return result
 
 
@@ -181,7 +188,7 @@ def get_wiktionary_trie() -> Trie:
         try:
             with open(wiktionary_words_bytes_path, "rb") as wwb:
                 print("reading wiktionary word trie from saved bytes")
-                wiktionary_words = Trie(root=TrieNode.from_bytes(wwb.read()))
+                wiktionary_words = Trie(buffer=wwb.read())
         except:
             print("could not load wiktionary word trie from bytes; " +
                   "reconstituting it (may take a few seconds)")
@@ -207,4 +214,7 @@ def get_wiktionary_trie() -> Trie:
 
 if __name__ == "__main__":
     test_trie = get_wiktionary_trie()
-    print(test_trie.search_words_by_letters(list("filching")))
+    print("searching trie for words with specific letters")
+    start = timer()
+    print(test_trie.search_words_by_letters(list("filchng")))
+    print("took", round((timer()-start)*1000, 2), "ms")
