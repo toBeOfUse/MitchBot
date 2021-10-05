@@ -18,7 +18,7 @@ def add_responses(bot: MitchClient):
     bot.register_responder(
         MessageResponder(
             r"magic (8|eight) ball",
-            lambda m: m.reply("magic 8-ball sez: \""+random.choice([
+            lambda m: m.reply("Magic 8-ball sez: \""+random.choice([
                 "It is certain.", "It is decidedly so.", "Without a doubt.", "Yes - definitely.",
                 "You may rely on it.", "As I see it, yes.", "Most likely.", "Outlook good.", "Yes.",
                 "Signs point to yes.", "Reply hazy, try again.", "Ask again later.",
@@ -37,14 +37,14 @@ def add_responses(bot: MitchClient):
         MessageResponder(
             r"\bflip\b.*\bcoin\b",
             lambda m: m.reply(
-                "\U0001FA99 " + random.choice(["heads", "tails"]))  # coin emoji
+                "\U0001FA99 " + random.choice(["Heads", "Tails"]))  # coin emoji
         )
     )
 
     async def fuck_response(message):
-        fuck = await message.channel.send("fuck you 🤬")
+        fuck = await message.channel.send("Fuck you 🤬")
         await asyncio.sleep(3)
-        await fuck.edit(content='love you guys')
+        await fuck.edit(content='Love you guys')
     bot.register_responder(
         MessageResponder(
             "fuck (you|u)",
@@ -105,6 +105,6 @@ def add_responses(bot: MitchClient):
     bot.register_responder(MessageResponder("\bwhat\b.*\bday\b|\bday of the week\b", day_of_week))
 
     async def nickname(message: discord.Message):
-        mess = "hello, ✨" + random.choice(textresources.nicknames)+"✨"
+        mess = "Hello, ✨" + random.choice(textresources.nicknames)+"✨"
         await message.reply(mess)
     bot.register_responder(MessageResponder("nickname", nickname, require_mention=True))

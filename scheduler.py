@@ -155,7 +155,7 @@ def schedule_tasks(client: MitchClient):
              "degrade", "orthograde", "fermigrade"])
         prelude = ("Good evening. " +
                    f"It's {int(a_time.strftime('%I'))}:{a_time.strftime('%M %p')} " +
-                   f"in {a_city}. {a_body} is in {a_state}. Tonight's fortune is:")
+                   f"in {a_city}. {a_body} is in {a_state}. Tonight's prediction is:")
         await client.get_channel(poetry_channel_id).send(prelude)
         poem = "\n".join("> "+x for x in next(poetry_generator).split("\n"))
         await client.get_channel(poetry_channel_id).send(poem)
