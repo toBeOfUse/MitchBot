@@ -14,30 +14,8 @@ from tornado.httpclient import AsyncHTTPClient
 from cairosvg import svg2png
 import discord
 from PIL import Image
-from sortedcontainers import SortedList
 
-words_db = sqlite3.connect("db/words.db")
-
-
-def get_word_frequency(word: str) -> int:
-    cur = words_db.cursor()
-    frequency = cur.execute(
-        "select frequency from words where word=?",
-        (word,)
-    ).fetchone()
-    return 0 if frequency is None else frequency[0]
-
-
-wiktionary_words: SortedList[str] = SortedList()
-print("loading wiktionary word list for puzzle...")
-with open("db/all-wiktionary-english-words.txt", encoding="utf-8") as wiktionary_file:
-    for line in wiktionary_file:
-        wiktionary_words.add(line.strip())
-print("done")
-
-
-def wiktionary_prefix_search(prefix: str) -> tuple[int, int]:
-    return (wiktionary_words.bisect_left(prefix), wiktionary_words.bisect)
+from db.queries import get_word_frequency, get_wiktionary_trie
 
 
 class Puzzle():
@@ -120,41 +98,32 @@ class Puzzle():
         list
         """
         start = timer()
+        wiktionary_words = get_wiktionary_trie()
         all_letters = [x.lower() for x in self.outside+[self.center]]
-
-        # ranges = [(0, len(wiktionary_words))]
-        # for i in range(4):
-        #     new_ranges = []
-        #     for r in ranges:
-        #         pass
-
-        starts = [wiktionary_words.bisect_left(c) for c in all_letters]
-        ends = [
-            wiktionary_words.bisect_left(chr(ord(c) + 1) if c != "z" else len(wiktionary_words))
-            for c in all_letters]
-
-        result = []
-        for word_range in zip(starts, ends):
-            words = wiktionary_words.islice(word_range[0], word_range[1])
-            for word in words:
-                if self.center not in word.upper():
-                    continue
-                if len(word) < 4:
-                    continue
-                if word.lower() in self.answers:
-                    continue
-                if word.lower() != word:
-                    continue
-                characters_count = True
-                for character in word:
-                    if character.upper() not in (self.outside + [self.center]):
-                        characters_count = False
-                        break
-                if not characters_count:
-                    continue
-                result.append(word)
+        candidates = wiktionary_words.search_words_by_letters(all_letters)
         end = timer()
         print("obtaining wiktionary words took", round((end-start)*1000, 2), "ms")
+
+        result = []
+        for word in candidates:
+            # i probably filtered the dataset for some of these characteristics at
+            # some point but i forget which ones so whatever better safe than sorry
+            if self.center not in word.upper():
+                continue
+            if len(word) < 4:
+                continue
+            if word.lower() in self.answers:
+                continue
+            if word.lower() != word:
+                continue
+            characters_count = True
+            for character in word:
+                if character.upper() not in (self.outside + [self.center]):
+                    characters_count = False
+                    break
+            if not characters_count:
+                continue
+            result.append(word)
         return result
 
     def render(
