@@ -4,6 +4,7 @@ static/html/*.html
 puzzles.db
 testpuzzles.db
 *.exe
+*.bin
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
