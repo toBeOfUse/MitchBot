@@ -10,7 +10,11 @@ from io import BytesIO
 import traceback
 from timeit import default_timer as timer
 import cython
-import trieparse
+# the python import system is bad
+try:
+    from db import trieparse
+except ImportError:
+    import trieparse
 
 words_db = sqlite3.connect("db/words.db")
 
@@ -187,7 +191,6 @@ def get_wiktionary_trie() -> Trie:
         wiktionary_words_bytes_path = "db/wiktionary-trie.bin"
         try:
             with open(wiktionary_words_bytes_path, "rb") as wwb:
-                print("reading wiktionary word trie from saved bytes")
                 wiktionary_words = Trie(buffer=wwb.read())
         except:
             print("could not load wiktionary word trie from bytes; " +
