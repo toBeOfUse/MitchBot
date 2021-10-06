@@ -17,17 +17,23 @@ import discord
 from PIL import Image
 
 from db.queries import get_word_frequency, get_wiktionary_trie
+from textresources import RandomNoRepeats
 
 
 class PuzzleRenderer:
-    """Base class for subclasses to override. available_renderers should be populated
-    with instances of subclasses to make them chooseable by Puzzle.render()."""
+    """Base class for subclasses to override; they should implement __init__, render,
+    and __repr__, on principle and so they work with instances of RandomNoRepeats.
+    available_renderers should be populated with instances of subclasses to make them
+    chooseable by Puzzle.render()."""
     available_renderers = []
 
     def __init__(self):
         raise NotImplementedError()
 
     def render(self) -> bytes:
+        raise NotImplementedError()
+
+    def __repr__(self) -> str:
         raise NotImplementedError()
 
 
@@ -145,7 +151,8 @@ class Puzzle():
         will be provided for you from the PuzzleRenderer.available_renderers
         variable."""
         if renderer is None:
-            renderer = random.choice(PuzzleRenderer.available_renderers)
+            source = RandomNoRepeats(PuzzleRenderer.available_renderers, "puzzle_renderers")
+            renderer = source.get_item()
         return renderer.render(self)
 
     def associate_with_message(self, message: discord.Message):
@@ -252,11 +259,12 @@ class Puzzle():
 
 class SVGTextTemplateRenderer(PuzzleRenderer):
     def __init__(self, template_path: PathLike):
+        self.template_path = template_path
         with open(template_path) as base_file:
             self.base_svg = base_file.read()
 
     def __repr__(self):
-        return f"SVGTextTemplateRenderer for {self.base_svg}"
+        return f"SVGTextTemplateRenderer for {self.template_path}"
 
     def __eq__(self, other):
         return self.base_svg == other.base_svg

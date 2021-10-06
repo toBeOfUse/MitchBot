@@ -14,7 +14,8 @@ class RandomNoRepeats:
     returning the same item twice in a row. This class persists its state through the
     SQLite file db/random.db. Because the user may wish to change the contents of a
     specific sequence between program executions, sequences are uniquely identified
-    by a string name rather than by their contents.
+    by a string name rather than by their contents. Items need to be convertable to
+    strings to be stored.
     """
 
     def __init__(self, source: Sequence, name: str):
@@ -30,12 +31,16 @@ class RandomNoRepeats:
         existing_row = cur.execute(
             "select used_items from random where name=?",
             (name,)).fetchone()
+        # TODO: optimize by using sets
+        source_strings = [str(x) for x in source]
         if existing_row is not None:
-            self.used_items = [x for x in json.loads(existing_row[0]) if x in source]
+            self.used_items: list[str] = [x for x in json.loads(
+                existing_row[0]) if x in source_strings]
         else:
-            self.used_items = []
+            self.used_items: list[str] = []
 
     def save(self):
+        # TODO: optimize by storing a pickled set in bytes?
         cur = random_db.cursor()
         cur.execute("insert or replace into random " +
                     "(name, used_items) values (?, ?)",
@@ -43,13 +48,16 @@ class RandomNoRepeats:
         random_db.commit()
 
     def get_item(self):
-        """Returns a random element that has not been used unless absolutely necessary."""
+        """Returns a random element that has not been used unless absolutely
+        necessary. Items are converted to strings to check if they have been used."""
         if len(self.used_items) >= len(self.source):
             self.used_items = self.used_items[-1:]
+        # TODO: idk something to prevent theoretically infinitely bad worst-case
+        # performance
         item = random.choice(self.source)
-        while item in self.used_items:
+        while str(item) in self.used_items:
             item = random.choice(self.source)
-        self.used_items.append(item)
+        self.used_items.append(str(item))
         self.save()
         return item
 
