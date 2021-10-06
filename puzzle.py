@@ -266,7 +266,7 @@ async def test():
     print("words that the nyt doesn't want us to know about:")
     print(random.sample(puzzle.get_wiktionary_alternative_answers(), 5))
     puzzle.save("db/testpuzzles.db")
-    rendered = puzzle.render(template="images/puzzle_template_5.svg")
+    rendered = puzzle.render(template="images/puzzle_template_6.svg")
     Image.open(BytesIO(rendered)).show()
 
 
