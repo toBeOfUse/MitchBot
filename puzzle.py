@@ -264,10 +264,10 @@ async def test():
     answers = iter(puzzle.answers)
     puzzle.guess(next(answers))
     print("words that the nyt doesn't want us to know about:")
-    print(puzzle.get_wiktionary_alternative_answers())
+    print(random.sample(puzzle.get_wiktionary_alternative_answers(), 5))
     puzzle.save("db/testpuzzles.db")
-    # rendered = puzzle.render()
-    # Image.open(BytesIO(rendered)).show()
+    rendered = puzzle.render(template="images/puzzle_template_5.svg")
+    Image.open(BytesIO(rendered)).show()
 
 
 if __name__ == "__main__":
