@@ -1,6 +1,7 @@
 import asyncio
 from io import BytesIO
 import json
+from os import PathLike
 import re
 import sqlite3
 from typing import Optional
@@ -18,6 +19,18 @@ from PIL import Image
 from db.queries import get_word_frequency, get_wiktionary_trie
 
 
+class PuzzleRenderer:
+    """Base class for subclasses to override. available_renderers should be populated
+    with instances of subclasses to make them chooseable by Puzzle.render()."""
+    available_renderers = []
+
+    def __init__(self):
+        raise NotImplementedError()
+
+    def render(self) -> bytes:
+        raise NotImplementedError()
+
+
 class Puzzle():
     """
     Instance of an NYT Spelling Bee puzzle. The puzzle consists of 6 outer letters
@@ -29,6 +42,7 @@ class Puzzle():
     database, can render itself to a PNG, and includes a functions to allow it to
     interact with discord Message objects.
     """
+
     # constants returned by `guess(word)`:
     wrong_word = 1
     good_word = 2
@@ -126,19 +140,13 @@ class Puzzle():
             result.append(word)
         return result
 
-    def render(
-        self,
-        output_width: int = 1200,
-        template=random.choice(list(Path("images").glob("puzzle_template_*.svg")))
-    ) -> bytes:
-        with open(template) as base_file:
-            base_svg = base_file.read()
-        base_svg = base_svg.replace("$C", self.center)
-        for letter in self.outside:
-            base_svg = base_svg.replace("$L", letter, 1)
-        # with open('images/rendertest.svg', "w+") as render_test:
-        #     render_test.write(base_svg)
-        return svg2png(base_svg, output_width=output_width)
+    def render(self, renderer: PuzzleRenderer = None):
+        """If you do not pass in an instance of a subclass of PuzzleRenderer, one
+        will be provided for you from the PuzzleRenderer.available_renderers
+        variable."""
+        if renderer is None:
+            renderer = random.choice(PuzzleRenderer.available_renderers)
+        return renderer.render(self)
 
     def associate_with_message(self, message: discord.Message):
         """The message that was most recently passed to this function will be edited
@@ -242,6 +250,28 @@ class Puzzle():
             return None
 
 
+class SVGTextTemplateRenderer(PuzzleRenderer):
+    def __init__(self, template_path: PathLike):
+        with open(template_path) as base_file:
+            self.base_svg = base_file.read()
+
+    def __repr__(self):
+        return f"SVGTextTemplateRenderer for {self.base_svg}"
+
+    def __eq__(self, other):
+        return self.base_svg == other.base_svg
+
+    def render(self, puzzle: Puzzle, output_width: int = 1200) -> bytes:
+        base_svg = self.base_svg.replace("$C", puzzle.center)
+        for letter in puzzle.outside:
+            base_svg = base_svg.replace("$L", letter, 1)
+        return svg2png(base_svg, output_width=output_width)
+
+
+for path in Path("images/").glob("puzzle_template_*.svg"):
+    PuzzleRenderer.available_renderers.append(SVGTextTemplateRenderer(path))
+
+
 async def test():
     print("frequency of 'puzzle'", get_word_frequency("puzzle"))
     saved_puzzle = Puzzle.retrieve_last_saved("db/testpuzzles.db")
@@ -266,7 +296,7 @@ async def test():
     print("words that the nyt doesn't want us to know about:")
     print(random.sample(puzzle.get_wiktionary_alternative_answers(), 5))
     puzzle.save("db/testpuzzles.db")
-    rendered = puzzle.render(template="images/puzzle_template_6.svg")
+    rendered = puzzle.render()
     Image.open(BytesIO(rendered)).show()
 
 
