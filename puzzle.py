@@ -62,7 +62,8 @@ class Puzzle():
             outside: list[str],
             pangrams: list[str],
             answers: list[str],
-            gotten_words: set = set()):
+            gotten_words: set = set(),
+            db_path: PathLike = "db/puzzles.db"):
         self.timestamp = originally_loaded
         self.center = center.upper()
         self.outside = [l.upper() for l in outside]
@@ -73,6 +74,7 @@ class Puzzle():
         self.gotten_words = set(w.lower() for w in gotten_words)
         self.message_id: int = -1
         self.message: Optional[discord.Message] = None
+        self.db_path = db_path
 
     def __eq__(self, other):
         return self.center+self.outside == other.center+other.outside
@@ -211,8 +213,10 @@ class Puzzle():
                          )
             )
 
-    def save(self, db_path="db/puzzles.db"):
+    def save(self, db_path=None):
         """Serializes the puzzle and saves it in a SQLite database."""
+        if db_path is None:
+            db_path = self.db_path
         db = sqlite3.connect(db_path)
         cur = db.cursor()
         cur.execute("""create table if not exists puzzles
@@ -323,14 +327,17 @@ async def test():
     if saved_puzzle is None:
         print("fetching puzzle from nyt")
         puzzle = await Puzzle.fetch_from_nyt()
+        puzzle.db_path = "db/testpuzzles.db"
     else:
-        print("retrieving puzzle from db")
+        print("retrieved puzzle from db")
         puzzle = saved_puzzle
+        puzzle.db_path = "db/testpuzzles.db"
         if (datetime.now()
             - datetime.fromtimestamp(puzzle.timestamp)
                 > timedelta(days=1)):
             print("puzzle from db was old, replacing it with current NYT one")
             puzzle = await Puzzle.fetch_from_nyt()
+            puzzle.db_path = "db/testpuzzles.db"
         else:
             print("puzzle from db is",
                   datetime.now() - datetime.fromtimestamp(puzzle.timestamp), "old")
@@ -340,7 +347,7 @@ async def test():
     puzzle.guess(next(answers))
     print("words that the nyt doesn't want us to know about:")
     print(random.sample(puzzle.get_wiktionary_alternative_answers(), 5))
-    puzzle.save("db/testpuzzles.db")
+    puzzle.save()
     rendered = puzzle.render()
     Image.open(BytesIO(rendered)).show()
 
