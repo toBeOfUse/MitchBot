@@ -1,24 +1,69 @@
 import random
 import re
-from collections import deque
+import sqlite3
+import json
+from typing import Sequence
+
+random_db = sqlite3.connect("db/random.db")
 
 
-def choice_no_repeats(in_list):
-    '''creates a generator that yields the elements of the input list in a random
-    order infinitely without repeating until the list runs out'''
-    source = deque()
+class RandomNoRepeats:
+    """
+    Class that wraps a sequence and returns a random item from it, repeating items
+    only when every item in the sequence has already been used once and never
+    returning the same item twice in a row. This class persists its state through the
+    SQLite file db/random.db. Because the user may wish to change the contents of a
+    specific sequence between program executions, sequences are uniquely identified
+    by a string name rather than by their contents.
+    """
+
+    def __init__(self, source: Sequence, name: str):
+        if len(source) < 2:
+            assert("RandomNoRepeats object needs > 1 source items")
+        self.source = list(source)
+        self.name = name
+
+        cur = random_db.cursor()
+        cur.execute("create table if not exists random " +
+                    "(name text primary key, used_items text)")
+        cur.execute("create index if not exists by_name on random (name)")
+        existing_row = cur.execute(
+            "select used_items from random where name=?",
+            (name,)).fetchone()
+        if existing_row is not None:
+            self.used_items = [x for x in json.loads(existing_row[0]) if x in source]
+        else:
+            self.used_items = []
+
+    def save(self):
+        cur = random_db.cursor()
+        cur.execute("insert or replace into random " +
+                    "(name, used_items) values (?, ?)",
+                    (self.name, json.dumps(self.used_items)))
+        random_db.commit()
+
+    def get_item(self):
+        """Returns a random element that has not been used unless absolutely necessary."""
+        if len(self.used_items) >= len(self.source):
+            self.used_items = self.used_items[-1:]
+        item = random.choice(self.source)
+        while item in self.used_items:
+            item = random.choice(self.source)
+        self.used_items.append(item)
+        self.save()
+        return item
+
+
+def get_poetry_generator():
+    with open("text/poetry.txt", encoding="utf-8") as poetry_file:
+        raw_poems = poetry_file.read().split("\n---\n")
+        poetry = [p.strip() for p in raw_poems if p.strip()]
+    source = RandomNoRepeats(poetry, "poetry")
     while True:
-        if len(source) == 0:
-            source.extend(random.sample(in_list, len(in_list)))
-        yield """And I, which was two fools, do so grow three;
-Who are a little wise, the best fools be."""
+        yield source.get_item()
 
 
-with open("text/poetry.txt", encoding="utf-8") as poetry_file:
-    raw_poems = poetry_file.read().split("\n---\n")
-    poetry = [p.strip() for p in raw_poems if p.strip()]
-
-poetry_generator = choice_no_repeats(poetry)
+poetry_generator = get_poetry_generator()
 
 nicknames = [
     "Accidental Genius", "Ace", "Adorable", "Angel Face", "Angel Heart", "Angelito", "Baba Ganoush",
@@ -117,3 +162,10 @@ def cursive(text, keep_emojis=False):
     cleaned_cursive_text = re.sub(emoji_regex, ' ', cursive_text).strip(
     ) if not keep_emojis else cursive_text.strip()
     return cleaned_cursive_text
+
+
+if __name__ == "__main__":
+    # test
+    print("9 outputs from RandomNoRepeats coin flips:")
+    flipper = RandomNoRepeats(["heads", "tails"], "coins")
+    print(", ".join(flipper.get_item() for i in range(9)))

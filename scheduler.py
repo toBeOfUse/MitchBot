@@ -1,6 +1,5 @@
 import asyncio
 from io import BytesIO
-import re
 from datetime import time, datetime, timedelta, timezone
 import inspect
 import random
