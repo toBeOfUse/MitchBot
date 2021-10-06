@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import random
 from timeit import default_timer as timer
+import base64
 
 from tornado.httpclient import AsyncHTTPClient
 from cairosvg import svg2png
@@ -257,18 +258,20 @@ class Puzzle():
             return None
 
 
-class SVGTextTemplateRenderer(PuzzleRenderer):
+class SVGTemplateRenderer(PuzzleRenderer):
     def __init__(self, template_path: PathLike):
         self.template_path = template_path
         with open(template_path) as base_file:
             self.base_svg = base_file.read()
 
     def __repr__(self):
-        return f"SVGTextTemplateRenderer for {self.template_path}"
+        return f"{self.__class__.__name__} for {self.template_path}"
 
     def __eq__(self, other):
         return self.base_svg == other.base_svg
 
+
+class SVGTextTemplateRenderer(SVGTemplateRenderer):
     def render(self, puzzle: Puzzle, output_width: int = 1200) -> bytes:
         base_svg = self.base_svg.replace("$C", puzzle.center)
         for letter in puzzle.outside:
@@ -278,6 +281,40 @@ class SVGTextTemplateRenderer(PuzzleRenderer):
 
 for path in Path("images/").glob("puzzle_template_*.svg"):
     PuzzleRenderer.available_renderers.append(SVGTextTemplateRenderer(path))
+
+
+class SVGImageTemplateRenderer(SVGTemplateRenderer):
+    def __init__(self, template_path: PathLike, alphabet_path: PathLike):
+        super().__init__(template_path)
+        self.alphabet_path = alphabet_path
+
+    def render(self, puzzle: Puzzle, output_width: int = 1200) -> bytes:
+        center_placeholder_pixel = (
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ" +
+            "AAAADUlEQVR42mP8/5fhPwAH/AL9Ow9X5gAAAABJRU5ErkJggg=="
+        )
+        outside_placeholder_pixel = (
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1" +
+            "HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+        )
+        with open(Path(
+            self.alphabet_path,
+            puzzle.center.lower()+".png"
+        ), "rb") as center_letter_file:
+            center_letter = base64.b64encode(center_letter_file.read()).decode('ascii')
+            base_svg = self.base_svg.replace(center_placeholder_pixel, center_letter)
+        for letter in puzzle.outside:
+            with open(Path(
+                self.alphabet_path,
+                letter.lower()+".png"
+            ), "rb") as letter_file:
+                letter_image = base64.b64encode(letter_file.read()).decode('ascii')
+                base_svg = base_svg.replace(outside_placeholder_pixel, letter_image, 1)
+        return svg2png(base_svg, output_width=output_width)
+
+
+PuzzleRenderer.available_renderers.append(SVGImageTemplateRenderer(
+    "images/image_puzzle_template_1.svg", "fonts/pencil/"))
 
 
 async def test():
