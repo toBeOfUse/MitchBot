@@ -350,6 +350,8 @@ async def test():
     puzzle.save()
     rendered = puzzle.render()
     Image.open(BytesIO(rendered)).show()
+    with open("images/puzzlestest.png", "wb+") as test_output:
+        test_output.write(rendered)
 
 
 if __name__ == "__main__":
