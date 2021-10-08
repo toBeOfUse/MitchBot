@@ -407,10 +407,14 @@ async def test():
     print("words that the nyt doesn't want us to know about:")
     print(random.sample(puzzle.get_wiktionary_alternative_answers(), 5))
     puzzle.save()
-    rendered = puzzle.render(PuzzleRenderer.available_renderers[-1])
-    # Image.open(BytesIO(rendered)).show()
-    with open("images/puzzlestest.gif", "wb+") as test_output:
-        test_output.write(rendered)
+    rendered = puzzle.render(SVGTextTemplateRenderer("images/puzzle_template_4.svg"))
+    if rendered[0:4] == b"\x89PNG":
+        print("displaying rendered png")
+        Image.open(BytesIO(rendered)).show()
+    else:
+        with open("images/puzzlestest.gif", "wb+") as test_output:
+            test_output.write(rendered)
+            print("wrote puzzletest.gif to images folder")
 
 
 if __name__ == "__main__":
