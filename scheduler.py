@@ -82,39 +82,42 @@ def schedule_tasks(client: MitchClient):
 
     async def send_new_puzzle():
         nonlocal current_puzzle
-        previous_puzzle = current_puzzle
-        current_puzzle = await Puzzle.fetch_from_nyt()
         channel: discord.TextChannel = client.get_channel(puzzle_channel_id)
-        message_text = random.choice(["Good morning",
-                                      "Goedemorgen",
-                                      "Bon matin",
-                                      "Ohayō",
-                                      "Back at it again at Krispy Kremes",
-                                      "Hello",
-                                      "Bleep Bloop",
-                                      "Here is a puzzle",
-                                      "Guten Morgen"])+" ✨"
-        alt_words = current_puzzle.get_wiktionary_alternative_answers()
-        if len(alt_words) > 1:
-            alt_words_sample = random.sample(alt_words, min(len(alt_words), 5))
-            alt_words_string = (", ".join(alt_words_sample[:-1]) +
-                                " and "+alt_words_sample[-1]+".")
-            message_text += (
-                " Words from Wiktionary that should count today that " +
-                "the NYT fails to acknowledge include: " + alt_words_string)
-        last_puzzle_post = await channel.send(
-            content=message_text,
-            file=discord.File(BytesIO(current_puzzle.render()), 'puzzle.png'))
-        current_puzzle.associate_with_message(last_puzzle_post)
-        current_puzzle.save()
-        if previous_puzzle:
-            previous_words = previous_puzzle.get_unguessed_words()
-            if len(previous_words) > 1:
-                await channel.send(
-                    "(The least common word that no one got for yesterday's "
-                    + f"puzzle was \"{previous_words[0]}\"; "
-                    + f"the most common word was \"{previous_words[-1]}\".)"
-                )
+        with channel.typing():
+            previous_puzzle = current_puzzle
+            current_puzzle = await Puzzle.fetch_from_nyt()
+            message_text = random.choice(["Good morning",
+                                          "Goedemorgen",
+                                          "Bon matin",
+                                          "Ohayō",
+                                          "Back at it again at Krispy Kremes",
+                                          "Hello",
+                                          "Bleep Bloop",
+                                          "Here is a puzzle",
+                                          "Guten Morgen"])+" ✨"
+            alt_words = current_puzzle.get_wiktionary_alternative_answers()
+            if len(alt_words) > 1:
+                alt_words_sample = random.sample(alt_words, min(len(alt_words), 5))
+                alt_words_string = (", ".join(alt_words_sample[:-1]) +
+                                    " and "+alt_words_sample[-1]+".")
+                message_text += (
+                    " Words from Wiktionary that should count today that " +
+                    "the NYT fails to acknowledge include: " + alt_words_string)
+            puzzle_image = current_puzzle.render()
+            puzzle_filename = "puzzle" + (".png" if puzzle_image[0:4] == b"\x89PNG" else ".gif")
+            last_puzzle_post = await channel.send(
+                content=message_text,
+                file=discord.File(BytesIO(puzzle_image), puzzle_filename))
+            current_puzzle.associate_with_message(last_puzzle_post)
+            current_puzzle.save()
+            if previous_puzzle:
+                previous_words = previous_puzzle.get_unguessed_words()
+                if len(previous_words) > 1:
+                    await channel.send(
+                        "(The least common word that no one got for yesterday's "
+                        + f"puzzle was \"{previous_words[0]}\"; "
+                        + f"the most common word was \"{previous_words[-1]}\".)"
+                    )
 
     asyncio.create_task(repeatedly_schedule_task_for(fetch_new_puzzle_at, send_new_puzzle))
 
