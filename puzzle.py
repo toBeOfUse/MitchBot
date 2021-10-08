@@ -345,7 +345,8 @@ class GIFTemplateRenderer(PuzzleRenderer):
         darkest_available_color = (255, 255, 255)
         darkest_index = -1
         for i, color in enumerate(palette.colors):
-            if statistics.mean(color) < statistics.mean(darkest_available_color):
+            if (statistics.mean(color) < statistics.mean(darkest_available_color)
+                    and i != base.info["transparency"]):
                 darkest_available_color = color
                 darkest_index = i
         font = ImageFont.truetype("./fonts/LiberationSans-Bold.ttf", self.font_size)
