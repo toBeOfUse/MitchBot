@@ -11,11 +11,13 @@ from pathlib import Path
 import random
 from timeit import default_timer as timer
 import base64
+import statistics
+import subprocess
 
 from tornado.httpclient import AsyncHTTPClient
 from cairosvg import svg2png
 import discord
-from PIL import Image
+from PIL import Image, ImageFont, ImageDraw
 
 from db.queries import get_word_frequency, get_wiktionary_trie
 from textresources import RandomNoRepeats
@@ -321,6 +323,64 @@ PuzzleRenderer.available_renderers.append(SVGImageTemplateRenderer(
     "images/image_puzzle_template_1.svg", "fonts/pencil/"))
 
 
+class GIFTemplateRenderer(PuzzleRenderer):
+    def __init__(
+            self, first_frame_file: str, gif_file: str,
+            center_coords: tuple[int, int],
+            outer_coords: list[tuple[int, int]],
+            font_size: int = 40):
+        self.gif_file = gif_file
+        self.first_frame_file = first_frame_file
+        self.outer_coords = outer_coords
+        self.center_coords = center_coords
+        self.font_size = font_size
+
+    def __repr__(self):
+        return f"GIFTemplateRenderer for {self.gif_file}"
+
+    def render(self, puzzle: Puzzle) -> bytes:
+        base = Image.open(self.first_frame_file)
+        palette = base.palette
+        darkest_available_color = (255, 255, 255)
+        darkest_index = -1
+        for i, color in enumerate(palette.colors):
+            if statistics.mean(color) < statistics.mean(darkest_available_color):
+                darkest_available_color = color
+                darkest_index = i
+        font = ImageFont.truetype("./fonts/LiberationSans-Bold.ttf", self.font_size)
+        surface = ImageDraw.Draw(base)
+        base.seek(0)
+        surface.text(self.center_coords, puzzle.center,
+                     fill=darkest_index, font=font, anchor="mm")
+        for letter, coords in zip(puzzle.outside, self.outer_coords):
+            surface.text(coords, letter, fill=darkest_index, font=font, anchor="mm")
+        image_bytes = BytesIO()
+        base.seek(0)
+        base.save(image_bytes, format="GIF")
+        image_bytes.seek(0)
+        gifsicle = subprocess.Popen(
+            ["gifsicle", self.gif_file, "--replace", "#0", "-"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        gifsicle_output = gifsicle.communicate(input=image_bytes.read())
+        if len(gifsicle_output[1]) > 0:
+            print("gifsicle errors:")
+            print(gifsicle_output[1].decode("ascii"))
+        return gifsicle_output[0]
+
+
+PuzzleRenderer.available_renderers.append(
+    GIFTemplateRenderer(
+        "images/spinf1.gif", "images/spin.gif",
+        (300, 300),
+        [(300, 210),
+         (375, 255),
+            (375, 345),
+            (300, 385),
+            (225, 345),
+            (225, 255)]
+    ))
+
+
 async def test():
     print("frequency of 'puzzle'", get_word_frequency("puzzle"))
     saved_puzzle = Puzzle.retrieve_last_saved("db/testpuzzles.db")
@@ -348,9 +408,9 @@ async def test():
     print("words that the nyt doesn't want us to know about:")
     print(random.sample(puzzle.get_wiktionary_alternative_answers(), 5))
     puzzle.save()
-    rendered = puzzle.render()
-    Image.open(BytesIO(rendered)).show()
-    with open("images/puzzlestest.png", "wb+") as test_output:
+    rendered = puzzle.render(PuzzleRenderer.available_renderers[-1])
+    # Image.open(BytesIO(rendered)).show()
+    with open("images/puzzlestest.gif", "wb+") as test_output:
         test_output.write(rendered)
 
 

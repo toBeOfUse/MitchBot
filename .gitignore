@@ -5,6 +5,7 @@ puzzles.db
 testpuzzles.db
 *.exe
 *.bin
+puzzlestest.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
