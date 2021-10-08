@@ -21,6 +21,7 @@ from PIL import Image, ImageFont, ImageDraw
 
 from db.queries import get_word_frequency, get_wiktionary_trie
 from textresources import RandomNoRepeats
+from images.svg_hexagon_generator import make_hexagon
 
 
 class PuzzleRenderer:
@@ -327,11 +328,11 @@ class GIFTemplateRenderer(PuzzleRenderer):
     def __init__(
             self, first_frame_file: str, gif_file: str,
             center_coords: tuple[int, int],
-            outer_coords: list[tuple[int, int]],
-            font_size: int = 40):
+            text_radius: float,
+            font_size: int = 50):
         self.gif_file = gif_file
         self.first_frame_file = first_frame_file
-        self.outer_coords = outer_coords
+        self.text_radius = text_radius
         self.center_coords = center_coords
         self.font_size = font_size
 
@@ -352,7 +353,10 @@ class GIFTemplateRenderer(PuzzleRenderer):
         base.seek(0)
         surface.text(self.center_coords, puzzle.center,
                      fill=darkest_index, font=font, anchor="mm")
-        for letter, coords in zip(puzzle.outside, self.outer_coords):
+        for letter, coords in zip(
+            puzzle.outside,
+            make_hexagon(self.center_coords, self.text_radius, True)
+        ):
             surface.text(coords, letter, fill=darkest_index, font=font, anchor="mm")
         image_bytes = BytesIO()
         base.seek(0)
@@ -371,13 +375,7 @@ class GIFTemplateRenderer(PuzzleRenderer):
 PuzzleRenderer.available_renderers.append(
     GIFTemplateRenderer(
         "images/spinf1.gif", "images/spin.gif",
-        (300, 300),
-        [(300, 210),
-         (375, 255),
-            (375, 345),
-            (300, 385),
-            (225, 345),
-            (225, 255)]
+        (300, 300), 90
     ))
 
 
