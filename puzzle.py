@@ -7,38 +7,16 @@ import sqlite3
 from typing import Optional
 import traceback
 from datetime import datetime, timedelta
-from pathlib import Path
 import random
 from timeit import default_timer as timer
-import base64
-import statistics
-import subprocess
 
 from tornado.httpclient import AsyncHTTPClient
-from cairosvg import svg2png
 import discord
-from PIL import Image, ImageFont, ImageDraw
+from PIL import Image
 
 from db.queries import get_word_frequency, get_wiktionary_trie
 from textresources import RandomNoRepeats
-from images.svg_hexagon_generator import make_hexagon
-
-
-class PuzzleRenderer:
-    """Base class for subclasses to override; they should implement __init__, render,
-    and __repr__, on principle and so they work with instances of RandomNoRepeats.
-    available_renderers should be populated with instances of subclasses to make them
-    chooseable by Puzzle.render()."""
-    available_renderers = []
-
-    def __init__(self):
-        raise NotImplementedError()
-
-    def render(self) -> bytes:
-        raise NotImplementedError()
-
-    def __repr__(self) -> str:
-        raise NotImplementedError()
+from render import PuzzleRenderer
 
 
 class Puzzle():
@@ -152,14 +130,14 @@ class Puzzle():
             result.append(word)
         return result
 
-    def render(self, renderer: PuzzleRenderer = None):
+    async def render(self, renderer: PuzzleRenderer = None):
         """If you do not pass in an instance of a subclass of PuzzleRenderer, one
         will be provided for you from the PuzzleRenderer.available_renderers
         variable."""
         if renderer is None:
             source = RandomNoRepeats(PuzzleRenderer.available_renderers, "puzzle_renderers")
             renderer = source.get_item()
-        return renderer.render(self)
+        return await renderer.render(self)
 
     def associate_with_message(self, message: discord.Message):
         """The message that was most recently passed to this function will be edited
@@ -265,121 +243,6 @@ class Puzzle():
             return None
 
 
-class SVGTemplateRenderer(PuzzleRenderer):
-    def __init__(self, template_path: PathLike):
-        self.template_path = template_path
-        with open(template_path) as base_file:
-            self.base_svg = base_file.read()
-
-    def __repr__(self):
-        return f"{self.__class__.__name__} for {self.template_path}"
-
-    def __eq__(self, other):
-        return self.base_svg == other.base_svg
-
-
-class SVGTextTemplateRenderer(SVGTemplateRenderer):
-    def render(self, puzzle: Puzzle, output_width: int = 1200) -> bytes:
-        base_svg = self.base_svg.replace("$C", puzzle.center)
-        for letter in puzzle.outside:
-            base_svg = base_svg.replace("$L", letter, 1)
-        return svg2png(base_svg, output_width=output_width)
-
-
-for path in Path("images/").glob("puzzle_template_*.svg"):
-    PuzzleRenderer.available_renderers.append(SVGTextTemplateRenderer(path))
-
-
-class SVGImageTemplateRenderer(SVGTemplateRenderer):
-    def __init__(self, template_path: PathLike, alphabet_path: PathLike):
-        super().__init__(template_path)
-        self.alphabet_path = alphabet_path
-
-    def render(self, puzzle: Puzzle, output_width: int = 1200) -> bytes:
-        center_placeholder_pixel = (
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ" +
-            "AAAADUlEQVR42mP8/5fhPwAH/AL9Ow9X5gAAAABJRU5ErkJggg=="
-        )
-        outside_placeholder_pixel = (
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1" +
-            "HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
-        )
-        with open(Path(
-            self.alphabet_path,
-            puzzle.center.lower()+".png"
-        ), "rb") as center_letter_file:
-            center_letter = base64.b64encode(center_letter_file.read()).decode('ascii')
-            base_svg = self.base_svg.replace(center_placeholder_pixel, center_letter)
-        for letter in puzzle.outside:
-            with open(Path(
-                self.alphabet_path,
-                letter.lower()+".png"
-            ), "rb") as letter_file:
-                letter_image = base64.b64encode(letter_file.read()).decode('ascii')
-                base_svg = base_svg.replace(outside_placeholder_pixel, letter_image, 1)
-        return svg2png(base_svg, output_width=output_width)
-
-
-PuzzleRenderer.available_renderers.append(SVGImageTemplateRenderer(
-    "images/image_puzzle_template_1.svg", "fonts/pencil/"))
-
-
-class GIFTemplateRenderer(PuzzleRenderer):
-    def __init__(
-            self, first_frame_file: str, gif_file: str,
-            center_coords: tuple[int, int],
-            text_radius: float,
-            font_size: int = 50):
-        self.gif_file = gif_file
-        self.first_frame_file = first_frame_file
-        self.text_radius = text_radius
-        self.center_coords = center_coords
-        self.font_size = font_size
-
-    def __repr__(self):
-        return f"GIFTemplateRenderer for {self.gif_file}"
-
-    def render(self, puzzle: Puzzle) -> bytes:
-        base = Image.open(self.first_frame_file)
-        palette = base.palette
-        darkest_available_color = (255, 255, 255)
-        darkest_index = -1
-        for i, color in enumerate(palette.colors):
-            if (statistics.mean(color) < statistics.mean(darkest_available_color)
-                    and i != base.info["transparency"]):
-                darkest_available_color = color
-                darkest_index = i
-        font = ImageFont.truetype("./fonts/LiberationSans-Bold.ttf", self.font_size)
-        surface = ImageDraw.Draw(base)
-        base.seek(0)
-        surface.text(self.center_coords, puzzle.center,
-                     fill=darkest_index, font=font, anchor="mm")
-        for letter, coords in zip(
-            puzzle.outside,
-            make_hexagon(self.center_coords, self.text_radius, True)
-        ):
-            surface.text(coords, letter, fill=darkest_index, font=font, anchor="mm")
-        image_bytes = BytesIO()
-        base.seek(0)
-        base.save(image_bytes, format="GIF")
-        image_bytes.seek(0)
-        gifsicle = subprocess.Popen(
-            ["gifsicle", self.gif_file, "--replace", "#0", "-"],
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        gifsicle_output = gifsicle.communicate(input=image_bytes.read())
-        if len(gifsicle_output[1]) > 0:
-            print("gifsicle errors:")
-            print(gifsicle_output[1].decode("ascii"))
-        return gifsicle_output[0]
-
-
-PuzzleRenderer.available_renderers.append(
-    GIFTemplateRenderer(
-        "images/spinf1.gif", "images/spin.gif",
-        (300, 300), 90
-    ))
-
-
 async def test():
     print("frequency of 'puzzle'", get_word_frequency("puzzle"))
     saved_puzzle = Puzzle.retrieve_last_saved("db/testpuzzles.db")
@@ -407,12 +270,12 @@ async def test():
     print("words that the nyt doesn't want us to know about:")
     print(random.sample(puzzle.get_wiktionary_alternative_answers(), 5))
     puzzle.save()
-    rendered = puzzle.render(SVGTextTemplateRenderer("images/puzzle_template_4.svg"))
+    rendered = await puzzle.render(PuzzleRenderer.available_renderers[-1])
     if rendered[0:4] == b"\x89PNG":
         print("displaying rendered png")
         Image.open(BytesIO(rendered)).show()
     else:
-        with open("images/puzzlestest.gif", "wb+") as test_output:
+        with open("images/testrenders/puzzletest.gif", "wb+") as test_output:
             test_output.write(rendered)
             print("wrote puzzletest.gif to images folder")
 
