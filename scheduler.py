@@ -103,7 +103,7 @@ def schedule_tasks(client: MitchClient):
                 message_text += (
                     " Words from Wiktionary that should count today that " +
                     "the NYT fails to acknowledge include: " + alt_words_string)
-            puzzle_image = current_puzzle.render()
+            puzzle_image = await current_puzzle.render()
             puzzle_filename = "puzzle" + (".png" if puzzle_image[0:4] == b"\x89PNG" else ".gif")
             last_puzzle_post = await channel.send(
                 content=message_text,
