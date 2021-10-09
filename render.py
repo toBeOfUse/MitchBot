@@ -158,11 +158,12 @@ async def test():
     from puzzle import Puzzle
     rs = PuzzleRenderer.available_renderers
     print(f"{len(rs)} renderers available. testing...")
-    for i, r in enumerate(rs):
+    for r in rs:
         print(r)
         render = await r.render(Puzzle(-1, "A", ["B", "C", "D", "E", "F", "G"], [], []))
         type = ".png" if render[0:4] == b"\x89PNG" else ".gif"
-        with open(f"images/testrenders/puzzle{i}{type}", "wb+") as output:
+        renderer_name_slug = str(r).replace(" ", "_").replace("\\", "-").replace("/", "-")
+        with open(f'images/testrenders/{renderer_name_slug}{type}', "wb+") as output:
             output.write(render)
 
 if __name__ == "__main__":
