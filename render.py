@@ -10,6 +10,7 @@ import statistics
 import asyncio
 from io import BytesIO
 import abc
+from timeit import default_timer
 
 from PIL import Image, ImageFont, ImageDraw
 from images.svg_hexagon_generator import make_hexagon
@@ -154,17 +155,54 @@ PuzzleRenderer.available_renderers.append(
     ))
 
 
+class BlenderRenderer(PuzzleRenderer):
+    def __init__(self, blender_file_path: PathLike):
+        self.blender_file_path = blender_file_path
+
+    async def render(self, puzzle: Puzzle):
+        letters = puzzle.center+("".join(puzzle.outside))
+        output_path = Path.cwd()/("images/renders/"+letters)
+        blender = await asyncio.create_subprocess_exec(
+            "blender", "-b", self.blender_file_path,
+            "-E", "CYCLES",
+            "-o", str(output_path)+"#",
+            "--python-text", "AddLetters",
+            "-F", "PNG ",
+            "-f", "1",
+            "--", letters,
+            stdout=asyncio.subprocess.PIPE
+        )
+        async for line in blender.stdout:
+            line = line.decode("ascii").strip()
+            print("\r"+line, end="\x1b[1K")
+            if line.startswith("Saved:"):
+                result_file_path = line[line.find("'")+1: -1]
+        await blender.wait()
+        print("\r", end="")
+
+        with open(result_file_path, "rb") as result_file:
+            result = result_file.read()
+        return result
+
+    def __repr__(self):
+        return f"BlenderRenderer for {self.blender_file_path}"
+
+
+PuzzleRenderer.available_renderers.insert(0, BlenderRenderer("images/blender_template_1.blend"))
+
+
 async def test():
     from puzzle import Puzzle
     rs = PuzzleRenderer.available_renderers
     print(f"{len(rs)} renderers available. testing...")
     for r in rs:
-        print(r)
+        start = default_timer()
         render = await r.render(Puzzle(-1, "A", ["B", "C", "D", "E", "F", "G"], [], []))
         type = ".png" if render[0:4] == b"\x89PNG" else ".gif"
         renderer_name_slug = str(r).replace(" ", "_").replace("\\", "-").replace("/", "-")
         with open(f'images/testrenders/{renderer_name_slug}{type}', "wb+") as output:
             output.write(render)
+        print(r, "took", round((default_timer()-start)*1000), "ms")
 
 if __name__ == "__main__":
     asyncio.run(test())
