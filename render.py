@@ -58,10 +58,6 @@ class SVGTextTemplateRenderer(SVGTemplateRenderer):
         return svg2png(base_svg, output_width=output_width)
 
 
-for path in Path("images/").glob("puzzle_template_*.svg"):
-    PuzzleRenderer.available_renderers.append(SVGTextTemplateRenderer(path))
-
-
 class SVGImageTemplateRenderer(SVGTemplateRenderer):
     def __init__(self, template_path: PathLike, alphabet_path: PathLike):
         super().__init__(template_path)
@@ -90,10 +86,6 @@ class SVGImageTemplateRenderer(SVGTemplateRenderer):
                 letter_image = base64.b64encode(letter_file.read()).decode('ascii')
                 base_svg = base_svg.replace(outside_placeholder_pixel, letter_image, 1)
         return svg2png(base_svg, output_width=output_width)
-
-
-PuzzleRenderer.available_renderers.append(SVGImageTemplateRenderer(
-    Path("images", "image_puzzle_template_1.svg"), Path("fonts", "pencil")))
 
 
 class GIFTemplateRenderer(PuzzleRenderer):
@@ -148,13 +140,6 @@ class GIFTemplateRenderer(PuzzleRenderer):
         return gifsicle_output[0]
 
 
-PuzzleRenderer.available_renderers.append(
-    GIFTemplateRenderer(
-        Path("images", "spinf1.gif"), Path("images", "spin.gif"),
-        (300, 300), 90
-    ))
-
-
 class BlenderRenderer(PuzzleRenderer):
     def __init__(self, blender_file_path: PathLike):
         self.blender_file_path = blender_file_path
@@ -188,7 +173,19 @@ class BlenderRenderer(PuzzleRenderer):
         return f"BlenderRenderer for {self.blender_file_path}"
 
 
-PuzzleRenderer.available_renderers.insert(0, BlenderRenderer("images/blender_template_1.blend"))
+for path in Path("images/").glob("puzzle_template_*.svg"):
+    PuzzleRenderer.available_renderers.append(SVGTextTemplateRenderer(path))
+
+PuzzleRenderer.available_renderers.append(SVGImageTemplateRenderer(
+    Path("images", "image_puzzle_template_1.svg"), Path("fonts", "pencil")))
+
+PuzzleRenderer.available_renderers.append(BlenderRenderer("images/blender_template_1.blend"))
+
+PuzzleRenderer.available_renderers.append(
+    GIFTemplateRenderer(
+        Path("images", "spinf1.gif"), Path("images", "spin.gif"),
+        (300, 300), 90
+    ))
 
 
 async def test():
