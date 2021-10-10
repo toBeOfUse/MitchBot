@@ -10,9 +10,8 @@ import discord
 from zoneinfo import ZoneInfo
 
 from MitchBot import MessageResponder, MitchClient
-from textresources import poetry_generator
 from puzzle import Puzzle
-from db.queries import get_random_city_timezone
+from db.queries import get_random_city_timezone, get_random_poem
 
 
 async def do_thing_after(seconds: float, thing: Callable):
@@ -159,7 +158,7 @@ def schedule_tasks(client: MitchClient):
                    f"It's {int(a_time.strftime('%I'))}:{a_time.strftime('%M %p')} " +
                    f"in {a_city}. {a_body} is in {a_state}. Tonight's prediction is:")
         await client.get_channel(poetry_channel_id).send(prelude)
-        poem = "\n".join("> "+x for x in next(poetry_generator).split("\n"))
+        poem = "\n".join("> "+x for x in get_random_poem().split("\n"))
         await client.get_channel(poetry_channel_id).send(poem)
     poem_time = time(hour=2+4, tzinfo=timezone.utc)  # 2am EDT
     # poem_time = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)

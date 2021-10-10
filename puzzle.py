@@ -14,8 +14,7 @@ from tornado.httpclient import AsyncHTTPClient
 import discord
 from PIL import Image
 
-from db.queries import get_word_frequency, get_wiktionary_trie
-from textresources import RandomNoRepeats
+from db.queries import get_word_frequency, get_wiktionary_trie, RandomNoRepeats
 from render import PuzzleRenderer
 
 

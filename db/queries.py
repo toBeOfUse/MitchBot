@@ -3,14 +3,19 @@ Allows Python code to access the word frequency and wiktionary words databases (
 are in SQLite and bespoke trie database forms, respectively.)
 """
 
+import json
 import sqlite3
 import struct
 from typing import Optional
 from io import BytesIO
 import traceback
 from timeit import default_timer as timer
+import random
+from typing import Sequence
+from datetime import datetime
+
 from timezonefinder import TimezoneFinder
-from zoneinfo import ZoneInfo
+
 import cython
 # the python import system is bad
 try:
@@ -44,6 +49,11 @@ def get_random_city_timezone() -> tuple[str, str]:
     finder = TimezoneFinder()
     zone = finder.timezone_at(lng=random_city[1], lat=random_city[2])
     return (random_city[0], zone)
+
+
+def get_random_nickname() -> str:
+    with open("db/nicknames.json", encoding="utf-8") as nickname_file:
+        return random.choice(json.load(nickname_file))
 
 
 class TrieNode():
@@ -230,9 +240,121 @@ def get_wiktionary_trie() -> Trie:
     return _wiktionary_trie_cached
 
 
+class RandomNoRepeats:
+    """
+    Class that wraps a sequence and returns a random item from it, repeating items
+    only when every item in the sequence has already been used once and never
+    returning the same item twice in a row. This class persists its state through the
+    SQLite file db/random.db. Because the user may wish to change the contents of a
+    specific sequence between program executions, sequences are uniquely identified
+    by a string name rather than by their contents; items need to be convertable to
+    strings (implementing __str__ or __repr__) to be stored.
+    """
+    random_db = sqlite3.connect("db/random.db")
+    cursor = random_db.cursor()
+
+    @classmethod
+    def get_new_access_id(cls):
+        """Returns the greatest integer currently saved in the random table as an
+        access id plus one."""
+        result = cls.cursor.execute(
+            "select last_access_id from random order by last_access_id desc limit 1"
+        ).fetchone()
+        return result[0]+1
+
+    def __init__(self, source: Sequence, name: str):
+        if len(source) < 2:
+            assert("RandomNoRepeats object needs > 1 source items")
+        self.source = list(source)
+        self.name = name
+
+        cur = self.cursor
+        # id is arbitrary; name is self.name; item is the string version of the item
+        # passed to the constructor as source; and last_access_id stores a unique
+        # integer that identifies the get_item call that most recently returned this
+        # item (or is -1 if it hasn't been accessed.) last_access_id is used to make
+        # sure that get_item never returns the same item twice in a row, even when
+        # all the items associated with the collection name have been accessed an
+        # equal number of times.
+        cur.execute(
+            "create table if not exists random " +
+            "(id integer primary key, name text, item text, " +
+            "uses integer, last_access_id int)")
+        cur.execute("create index if not exists uses_by_name " +
+                    "on random (name, uses, last_access_id)")
+
+        existing_items = set(x[0] for x in cur.execute(
+            "select item from random where name=?",
+            (name,)).fetchall())
+        source_strings = [str(x) for x in source]
+        for string in source_strings:
+            if string not in existing_items:
+                cur.execute(
+                    "insert into random (name, item, uses, last_access_id) values (?, ?, ?, ?)",
+                    (name, string, 0, -1)
+                )
+
+        self.random_db.commit()
+
+    def get_item(self):
+        """Returns a random element that has been returned fewer times than or, when
+        necessary, the same number of times as every other element. Never returns the
+        same element twice in a row."""
+        # find the least number of times any element has been used and the id of the
+        # last access that retrieved an item with name==self.name from the table
+        least_uses = self.cursor.execute(
+            "select uses from random where name=? " +
+            "order by uses limit 1",
+            (self.name,)).fetchone()[0]
+        last_access = self.cursor.execute(
+            "select last_access_id from random where name=? " +
+            "order by last_access_id desc limit 1",
+            (self.name,)).fetchone()[0]
+        # select a random element that has been used the least number of times any
+        # element has been used AND wasn't the last element to be accessed among
+        # those with name==self.name (as determined by the greatest last_access_id).
+        # if the greatest last_access_id is -1, it means that no items in this named
+        # category have ever been accessed, so we can ignore this condition.
+        item = self.cursor.execute(
+            "select item from random where name=? and uses=? and " +
+            "(last_access_id=-1 or last_access_id!=?) order by random() limit 1",
+            (self.name, least_uses, last_access)).fetchone()[0]
+        self.cursor.execute(
+            "update random set uses=?, last_access_id=? where item=?",
+            (least_uses+1, self.get_new_access_id(), item)
+        )
+        self.random_db.commit()
+        return item
+
+
+with open("text/poetry.txt", encoding="utf-8") as poetry_file:
+    raw_poems = poetry_file.read().split("\n---\n")
+poetry = [p.strip() for p in raw_poems if p.strip()]
+poetry_source = RandomNoRepeats(poetry, "poetry")
+
+
+def get_random_poem() -> str:
+    return poetry_source.get_item()
+
+
 if __name__ == "__main__":
+    print("acquiring wiktionary trie")
     test_trie = get_wiktionary_trie()
     print("searching trie for words with specific letters")
     start = timer()
-    print(test_trie.search_words_by_letters(list("filchng")))
+    print(test_trie.search_words_by_letters(list("abcdefg")))
     print("took", round((timer()-start)*1000, 2), "ms")
+    print()
+    print("random city and timezone:", get_random_city_timezone())
+    print()
+    print("some words ordered by frequency:")
+    print(
+        sorted(
+            ["especially", "when", "dogs", "should", "vote"],
+            key=get_word_frequency, reverse=True))
+    print()
+    print("random nickname:", get_random_nickname())
+    print()
+    print("9 outputs from RandomNoRepeats coin flips:")
+    flipper = RandomNoRepeats(["heads", "tails"], "coins")
+    print(", ".join(flipper.get_item() for i in range(9)))

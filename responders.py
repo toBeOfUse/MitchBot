@@ -7,7 +7,7 @@ import discord
 from PIL import Image
 
 from MitchBot import MitchClient, MessageResponder
-import textresources
+from db.queries import get_random_nickname
 
 
 def add_responses(bot: MitchClient):
@@ -105,6 +105,6 @@ def add_responses(bot: MitchClient):
     bot.register_responder(MessageResponder("\bwhat\b.*\bday\b|\bday of the week\b", day_of_week))
 
     async def nickname(message: discord.Message):
-        mess = "Hello, ✨" + random.choice(textresources.nicknames)+"✨"
+        mess = "Hello, ✨" + get_random_nickname()+"✨"
         await message.reply(mess)
     bot.register_responder(MessageResponder("nickname", nickname, require_mention=True))
