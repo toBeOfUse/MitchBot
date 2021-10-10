@@ -47,7 +47,7 @@ def add_responses(bot: MitchClient):
         await fuck.edit(content='Love you guys')
     bot.register_responder(
         MessageResponder(
-            "fuck (you|u)",
+            r"fuck (you|u)",
             fuck_response
         )
     )
@@ -73,7 +73,7 @@ def add_responses(bot: MitchClient):
                 bg.save(image_bytes, format='PNG')
                 image_bytes.seek(0)
                 await message.channel.send(file=discord.File(fp=image_bytes, filename='fight.png'))
-    bot.register_responder(MessageResponder("\bmake\b.*\bfight\b", fight))
+    bot.register_responder(MessageResponder(r"\bmake\b.*\bfight\b", fight))
 
     async def kiss(message: discord.Message):
         async with message.channel.typing():
@@ -102,7 +102,7 @@ def add_responses(bot: MitchClient):
             await message.edit(content=d)
             await asyncio.sleep(0.5)
         await message.edit(content=days[now.weekday()])
-    bot.register_responder(MessageResponder("\bwhat\b.*\bday\b|\bday of the week\b", day_of_week))
+    bot.register_responder(MessageResponder(r"\bwhat\b.*\bday\b|\bday of the week\b", day_of_week))
 
     async def nickname(message: discord.Message):
         mess = "Hello, ✨" + get_random_nickname()+"✨"
