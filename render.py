@@ -161,7 +161,7 @@ class BlenderRenderer(PuzzleRenderer):
 
     async def render(self, puzzle: Puzzle):
         letters = puzzle.center+("".join(puzzle.outside))
-        output_path = Path.cwd()/("images/renders/"+letters)
+        output_path = Path.cwd()/("images/blenderrenders/"+letters)
         blender = await asyncio.create_subprocess_exec(
             "blender", "-b", self.blender_file_path,
             "-E", "CYCLES",
