@@ -6,13 +6,12 @@ are in SQLite and bespoke trie database forms, respectively.)
 import json
 import sqlite3
 import struct
-from typing import Optional
+from typing import Any, Optional
 from io import BytesIO
 import traceback
 from timeit import default_timer as timer
 import random
 from typing import Sequence
-from datetime import datetime
 
 from timezonefinder import TimezoneFinder
 
@@ -283,23 +282,30 @@ class RandomNoRepeats:
         cur.execute("create index if not exists uses_by_name " +
                     "on random (name, uses, last_access_id)")
 
-        existing_items = set(x[0] for x in cur.execute(
+        existing_items: set[str] = set(x[0] for x in cur.execute(
             "select item from random where name=?",
             (name,)).fetchall())
-        source_strings = [str(x) for x in source]
-        for string in source_strings:
+        # this may very well end up being a mapping of strings to themselves...
+        self.item_lookup: dict[str, Any] = {str(x): x for x in source}
+
+        for string in self.item_lookup.keys():
             if string not in existing_items:
                 cur.execute(
                     "insert into random (name, item, uses, last_access_id) values (?, ?, ?, ?)",
                     (name, string, 0, -1)
                 )
+        for string in existing_items:
+            if string not in self.item_lookup:
+                cur.execute("delete from random where name=? and item=?",
+                            (name, string)
+                            )
 
         self.random_db.commit()
 
     def get_item(self):
-        """Returns a random element that has been returned fewer times than or, when
-        necessary, the same number of times as every other element. Never returns the
-        same element twice in a row."""
+        """Returns a random item that has been returned fewer times than or, when
+        necessary, the same number of times as every other item. Never returns the
+        same item twice in a row."""
         # find the least number of times any element has been used and the id of the
         # last access that retrieved an item with name==self.name from the table
         least_uses = self.cursor.execute(
@@ -324,7 +330,7 @@ class RandomNoRepeats:
             (least_uses+1, self.get_new_access_id(), item)
         )
         self.random_db.commit()
-        return item
+        return self.item_lookup[item]
 
 
 with open("text/poetry.txt", encoding="utf-8") as poetry_file:
