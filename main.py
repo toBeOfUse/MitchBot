@@ -3,7 +3,6 @@ import asyncio
 import inspect
 import json
 import os
-import sys
 from collections import defaultdict
 
 # package dependencies
@@ -15,10 +14,6 @@ import tornado.websocket
 import MitchBot
 from responders import add_responses
 from scheduler import schedule_tasks
-
-if sys.platform == 'win32':
-    # required for tornado in python 3.8
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 discord_client = None  # instantiated in main() so as to use the event loop created when main() is run
 http_client = tornado.httpclient.AsyncHTTPClient()
