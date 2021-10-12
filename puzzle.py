@@ -42,8 +42,7 @@ class Puzzle():
             outside: list[str],
             pangrams: list[str],
             answers: list[str],
-            gotten_words: set = set(),
-            db_path: PathLike = "db/puzzles.db"):
+            gotten_words: set = set()):
         self.timestamp = originally_loaded
         self.center = center.upper()
         self.outside = [l.upper() for l in outside]
@@ -53,14 +52,13 @@ class Puzzle():
             self.answers.add(word)  # shouldn't be necessary but just in case
         self.gotten_words = set(w.lower() for w in gotten_words)
         self.message_id: int = -1
-        self.message: Optional[discord.Message] = None
-        self.db_path = db_path
+        self.db_path = None
 
     def __eq__(self, other):
         return self.center+self.outside == other.center+other.outside
 
     @property
-    def percentageComplete(self):
+    def percentage_complete(self):
         return round(len(self.gotten_words) / len(self.answers) * 100, 1)
 
     def does_word_count(self, word: str) -> bool:
@@ -139,13 +137,12 @@ class Puzzle():
         return await renderer.render(self)
 
     def associate_with_message(self, message: discord.Message):
-        """The message that was most recently passed to this function will be edited
-        to append percentage completeness updates to it as guesses come in. WARNING:
-        parenthesized content in the message text will not survive such an update.
-        The message's id will be serialized by the `save()` function and can be used
-        to retrieve the message itself for Puzzles loaded through
-        `retrieve_last_saved`."""
-        self.message = message
+        """Used to give a puzzle a Discord message ID that can be saved in the
+        database and retrieved with the puzzle so that Discord client code can
+        retrieve that message and update it with puzzle status information whenever
+        it wants. Technically violates separation of concerns, and the Discord
+        API-oriented code should persist this data itself, but oh well it's just one
+        integer"""
         self.message_id = message.id
 
     @classmethod
@@ -163,11 +160,13 @@ class Puzzle():
                 game["pangrams"],
                 game["answers"])
 
-    async def respond_to_guesses(self, message: discord.Message):
+    def respond_to_guesses(self, message: discord.Message) -> list[str]:
         """
-        Discord bot-specific function for awarding points in the form of reactions
+        Discord bot-specific function for awarding points in the form of reactions;
+        returns a list of emojis.
         """
         num_emojis = ["0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"]
+        reactions = []
         words = re.sub("\W", " ", message.content).split()
         points = 0
         pangram = False
@@ -175,29 +174,31 @@ class Puzzle():
             guess_result = self.guess(word)
             if guess_result == Puzzle.good_word:
                 points += 1
-            if guess_result == Puzzle.pangram:
+            elif guess_result == Puzzle.pangram:
                 points += 1
                 pangram = True
         if points > 0:
-            await message.add_reaction("👍")
+            reactions.append("👍")
             if points > 1:
                 for num_char in str(points):
-                    await message.add_reaction(num_emojis[int(num_char)])
+                    reactions.append(num_emojis[int(num_char)])
         if pangram:
-            await message.add_reaction("🍳")
-        if self.percentageComplete > 0 and self.message is not None:
-            base_content = re.sub("\(.*\)", "", self.message.content).strip()
-            await self.message.edit(
-                content=(base_content
-                         + f" ({self.percentageComplete}% complete)"
-                         )
-            )
+            reactions.append("🍳")
+        return reactions
 
-    def save(self, db_path=None):
+    def persist(self, db_path: PathLike = "db/puzzles.db"):
+        """Sets a puzzle object up to be saved in the given database. This method
+        must be called on an object for it to persist and be returnable by
+        retrieve_last_saved. After it is called, the puzzle object will automatically
+        update its record in the database whenever its state changes."""
+        self.db_path = db_path
+        self.save()
+
+    def save(self):
         """Serializes the puzzle and saves it in a SQLite database."""
-        if db_path is None:
-            db_path = self.db_path
-        db = sqlite3.connect(db_path)
+        if self.db_path is None:
+            return
+        db = sqlite3.connect(self.db_path)
         cur = db.cursor()
         cur.execute("""create table if not exists puzzles
             (timestamp integer primary key, message_id integer, center text, outside text,
@@ -216,11 +217,9 @@ class Puzzle():
 
     @classmethod
     def retrieve_last_saved(cls, db_path: str = "db/puzzles.db") -> Optional["Puzzle"]:
-        """Retrieves the most recently saved puzzle from the SQLite database. The
-        only thing lost through serialization is the self.message instance variable,
-        which stores an object of type discord.Message, which needs to be retrieved
-        by a discord client and passed to associate_with_message in order for said
-        message to be updated with completion information upon future guesses."""
+        """Retrieves the most recently saved puzzle from the SQLite database. Note
+        that the returned object is separate from the database record until/unless
+        persist() is called to assign it to the same database again."""
         db = sqlite3.connect(db_path)
         cur = db.cursor()
         try:
@@ -248,20 +247,18 @@ async def test():
     if saved_puzzle is None:
         print("fetching puzzle from nyt")
         puzzle = await Puzzle.fetch_from_nyt()
-        puzzle.db_path = "db/testpuzzles.db"
     else:
         print("retrieved puzzle from db")
         puzzle = saved_puzzle
-        puzzle.db_path = "db/testpuzzles.db"
         if (datetime.now()
             - datetime.fromtimestamp(puzzle.timestamp)
                 > timedelta(days=1)):
             print("puzzle from db was old, replacing it with current NYT one")
             puzzle = await Puzzle.fetch_from_nyt()
-            puzzle.db_path = "db/testpuzzles.db"
         else:
             print("puzzle from db is",
                   datetime.now() - datetime.fromtimestamp(puzzle.timestamp), "old")
+    puzzle.persist("db/testpuzzles.db")
     print("today's words from least to most common:")
     print(puzzle.get_unguessed_words())
     answers = iter(puzzle.answers)
