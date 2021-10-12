@@ -167,7 +167,7 @@ class Puzzle():
         """
         num_emojis = ["0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"]
         reactions = []
-        words = re.sub("\W", " ", message.content).split()
+        words = set(re.sub("\W", " ", message.content).split())
         points = 0
         pangram = False
         for word in words:
