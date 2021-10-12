@@ -28,8 +28,8 @@ async def do_thing_after(seconds: float, thing: Callable):
 def get_seconds_before_next(time_of_day: time) -> float:
     """Utility function to get the number of seconds before the next time a time of
     day occurs in UTC"""
-    now = datetime.now(tz=timezone.utc)
-    if now.time().replace(tzinfo=timezone.utc) >= time_of_day:
+    now = datetime.now(tz=timezone.utc).astimezone(time_of_day.tzinfo)
+    if now.time() >= time_of_day:
         next_puzzle_day = now.date()+timedelta(days=1)
     else:
         next_puzzle_day = now.date()
@@ -53,7 +53,7 @@ def schedule_tasks(client: MitchClient):
     # puzzle scheduling:
     puzzle_channel_id = 814334169299157001  # production
     # puzzle_channel_id = 888301952067325952  # test
-    fetch_new_puzzle_at = time(hour=7+4, tzinfo=timezone.utc)  # 7am EDT
+    fetch_new_puzzle_at = time(hour=7, tzinfo=ZoneInfo("America/New_York"))
     # fetch_new_puzzle_at = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)
     #                        ).time().replace(tzinfo=timezone.utc)  # test
     current_puzzle: Optional[Puzzle] = None
@@ -183,7 +183,7 @@ def schedule_tasks(client: MitchClient):
         await client.get_channel(poetry_channel_id).send(prelude)
         poem = "\n".join("> "+x for x in get_random_poem().split("\n"))
         await client.get_channel(poetry_channel_id).send(poem)
-    poem_time = time(hour=2+4, tzinfo=timezone.utc)  # 2am EDT
+    poem_time = time(hour=2, tzinfo=ZoneInfo("America/New_York"))
     # poem_time = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)
     #              ).time().replace(tzinfo=timezone.utc)  # test
     asyncio.create_task(repeatedly_schedule_task_for(poem_time, send_poem))
