@@ -1,6 +1,9 @@
 """
-Allows Python code to access the word frequency and wiktionary words databases (which
-are in SQLite and bespoke trie database forms, respectively.)
+Provides functions to access the word frequency and wiktionary words databases (which
+are in SQLite and bespoke trie database forms, respectively) as well as the nicknames
+in db/nicknames.json and poetry from text/poetry.txt. The RandomNoRepeats class
+defined here is also useful in general. Puzzles are persisted via code in the Puzzle
+class (not here.)
 """
 
 import json
