@@ -59,20 +59,20 @@ def schedule_tasks(client: MitchClient):
     current_puzzle: Optional[Puzzle] = None
 
     async def load_puzzle():
-        await client.wait_until_ready()
         nonlocal current_puzzle
         current_puzzle = Puzzle.retrieve_last_saved()
         if current_puzzle is not None:
             print("retrieved current puzzle from database")
+            current_puzzle.persist()
             try:
                 if current_puzzle.message_id == -1:
                     raise ValueError("Puzzle from DB did not have message ID")
-                last_puzzle_post = await (client.get_channel(puzzle_channel_id)
-                                          .fetch_message(current_puzzle.message_id))
-                current_puzzle.associate_with_message(last_puzzle_post)
-                print("retrieved last puzzle post")
+                await client.wait_until_ready()
+                puzzle_channel = client.get_channel(puzzle_channel_id)
+                await puzzle_channel.fetch_message(current_puzzle.message_id)
+                print("the previous puzzle status post is accessible")
             except:
-                print("could not retrieve last puzzle post")
+                print("could not retrieve previous puzzle status post")
                 traceback.print_exc()
         else:
             print("could not retrieve current puzzle from database")
@@ -81,10 +81,11 @@ def schedule_tasks(client: MitchClient):
 
     async def send_new_puzzle():
         nonlocal current_puzzle
-        channel: discord.TextChannel = client.get_channel(puzzle_channel_id)
+        channel = client.get_channel(puzzle_channel_id)
         with channel.typing():
             previous_puzzle = current_puzzle
             current_puzzle = await Puzzle.fetch_from_nyt()
+            current_puzzle.persist()
             message_text = random.choice(["Good morning",
                                           "Goedemorgen",
                                           "Bon matin",
@@ -98,38 +99,60 @@ def schedule_tasks(client: MitchClient):
             if len(alt_words) > 1:
                 alt_words_sample = random.sample(alt_words, min(len(alt_words), 5))
                 alt_words_string = (", ".join(alt_words_sample[:-1]) +
-                                    " and "+alt_words_sample[-1]+".")
+                                    ", and "+alt_words_sample[-1]+". ")
                 message_text += (
                     " Words from Wiktionary that should count today that " +
                     "the NYT fails to acknowledge include: " + alt_words_string)
-            puzzle_image = await current_puzzle.render()
-            puzzle_filename = "puzzle" + (".png" if puzzle_image[0:4] == b"\x89PNG" else ".gif")
-            last_puzzle_post = await channel.send(
-                content=message_text,
-                file=discord.File(BytesIO(puzzle_image), puzzle_filename))
-            current_puzzle.associate_with_message(last_puzzle_post)
-            current_puzzle.save()
-            if previous_puzzle:
+            if previous_puzzle is not None:
                 previous_words = previous_puzzle.get_unguessed_words()
                 if len(previous_words) > 1:
-                    await channel.send(
-                        "(The least common word that no one got for yesterday's "
-                        + f"puzzle was \"{previous_words[0]}\"; "
-                        + f"the most common word was \"{previous_words[-1]}\".)"
+                    message_text += (
+                        "The least common word that no one got for yesterday's "
+                        + f"puzzle was \"{previous_words[0]};\" "
+                        + f"the most common word was \"{previous_words[-1]}.\""
                     )
+            puzzle_image = await current_puzzle.render()
+            puzzle_filename = "puzzle" + (".png" if puzzle_image[0:4] == b"\x89PNG" else ".gif")
+            await channel.send(
+                content=message_text,
+                file=discord.File(BytesIO(puzzle_image), puzzle_filename))
+            status_message = await channel.send(content="Words found by you guys so far: None~")
+            current_puzzle.associate_with_message(status_message)
+            current_puzzle.persist()
 
     asyncio.create_task(repeatedly_schedule_task_for(fetch_new_puzzle_at, send_new_puzzle))
 
     # kind of a cheat to have these next two things in scheduler.py. but.
     async def respond_to_guesses(message: discord.Message):
         if current_puzzle is not None:
-            await current_puzzle.respond_to_guesses(message)
+            reactions = current_puzzle.respond_to_guesses(message)
+            for reaction in reactions:
+                await message.add_reaction(reaction)
+            try:
+                puzzle_channel = client.get_channel(puzzle_channel_id)
+                assert puzzle_channel is not None, "could not retrieve channel that puzzles are sent in"
+                status_message: discord.Message = (
+                    await puzzle_channel.fetch_message(current_puzzle.message_id)
+                )
+                found_words = sorted(list(current_puzzle.gotten_words))
+                status_text = 'Words found by you guys so far: '
+                status_text += (
+                    f'||{", ".join(found_words[:-1])}' +
+                    f'{", and " if len(found_words) > 2 else (" and " if len(found_words) > 1 else "")}' +
+                    f'{found_words[-1]}||. '
+                )
+                status_text += f'({current_puzzle.percentage_complete}% complete)'
+                await status_message.edit(content=status_text)
+
+            except:
+                print("could not retrieve Discord message to update puzzle status !!!")
+                traceback.print_exc()
 
     client.register_responder(MessageResponder(
         lambda m: m.channel.id == puzzle_channel_id, respond_to_guesses))
 
     @client.event
-    async def on_message_edit(before: discord.Message, after: discord.Message):
+    async def _(before: discord.Message, after: discord.Message):
         if after.channel.id == puzzle_channel_id:
             if before.content != after.content:
                 # remove old reactions
