@@ -2,8 +2,9 @@
 Provides functions to access the word frequency and wiktionary words databases (which
 are in SQLite and bespoke trie database forms, respectively) as well as the nicknames
 in db/nicknames.json and poetry from text/poetry.txt. The RandomNoRepeats class
-defined here is also useful in general. Puzzles are persisted via code in the Puzzle
-class (not here.)
+defined here is also useful in general. Note: the paths within this file are
+constructed with the expectation that the CWD will be the root directory of the
+repository. Puzzles are persisted via code in the Puzzle class (not here.)
 """
 
 import json
@@ -247,10 +248,14 @@ class RandomNoRepeats:
     Class that wraps a sequence and returns a random item from it, repeating items
     only when every item in the sequence has already been used once and never
     returning the same item twice in a row. This class persists its state through the
-    SQLite file db/random.db. Because the user may wish to change the contents of a
+    SQLite file db/random.db. Because the client may wish to change the contents of a
     specific sequence between program executions, sequences are uniquely identified
     by a string name rather than by their contents; items need to be convertable to
-    strings (implementing __str__ or __repr__) to be stored.
+    strings (by implementing __str__ or __repr__) to be stored. Items that were not
+    present during previous instantiations of a specific named sequence and have
+    never been returned before will always be prioritized over every item that has
+    been returned before; instantiating a new named sequence without an item that it
+    previously contained is equivalent to removing it from the sequence forever.
     """
     random_db = sqlite3.connect("db/random.db")
     cursor = random_db.cursor()
@@ -309,11 +314,16 @@ class RandomNoRepeats:
         """Returns a random item that has been returned fewer times than or, when
         necessary, the same number of times as every other item. Never returns the
         same item twice in a row."""
-        # find the least number of times any element has been used and the id of the
-        # last access that retrieved an item with name==self.name from the table
+        # find the least and most number of times any element has been used and the
+        # id of the last access that retrieved an item with name==self.name from the
+        # table
         least_uses = self.cursor.execute(
             "select uses from random where name=? " +
             "order by uses limit 1",
+            (self.name,)).fetchone()[0]
+        most_uses = self.cursor.execute(
+            "select uses from random where name=? " +
+            "order by uses desc limit 1",
             (self.name,)).fetchone()[0]
         last_access = self.cursor.execute(
             "select last_access_id from random where name=? " +
@@ -328,9 +338,15 @@ class RandomNoRepeats:
             "select item from random where name=? and uses=? and " +
             "(last_access_id=-1 or last_access_id!=?) order by random() limit 1",
             (self.name, least_uses, last_access)).fetchone()[0]
+        # set the uses count of the item that was just used to the greatest number of
+        # uses of any item in that named group. this number may be inaccurate for
+        # items that were just inserted and are being used for the first time, but we
+        # do not want such items to be used e. g. 5 times in a row to catch up in the
+        # case that all the other items have been used at least 5 times, so this is
+        # the best way to handle that.
         self.cursor.execute(
             "update random set uses=?, last_access_id=? where item=?",
-            (least_uses+1, self.get_new_access_id(), item)
+            (most_uses, self.get_new_access_id(), item)
         )
         self.random_db.commit()
         return self.item_lookup[item]
@@ -367,3 +383,6 @@ if __name__ == "__main__":
     print("9 outputs from RandomNoRepeats coin flips:")
     flipper = RandomNoRepeats(["heads", "tails"], "coins")
     print(", ".join(flipper.get_item() for i in range(9)))
+    print("9 outputs from RandomNoRepeats coin flips with a replaced item:")
+    new_flipper = RandomNoRepeats(["heads", "not heads"], "coins")
+    print(", ".join(new_flipper.get_item() for i in range(9)))
