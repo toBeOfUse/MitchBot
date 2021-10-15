@@ -1,6 +1,6 @@
-# MitchBot: a fun robotic mitch presence for your server
+# MitchBot: a fun robotic Mitch presence for Discord servers
 
-MitchBot provides various fun responses to messages as well as being able to play songs into your voice channels and, on Windows, speak with the default text-to-speech engine. It creates a user interface at http://localhost:9876/swordfish/ in order to accomplish those things. Start MitchBot by running `main.py` after placing a login token by itself in a `login_token.txt` file on the root directory.
+MitchBot provides various fun responses to messages as well as posting predictions and puzzles at specified times. Start MitchBot by running `main.py` after placing a login token by itself in a `login_token.txt` file on the root directory.
 
 ## Setup
 
@@ -8,7 +8,13 @@ MitchBot provides various fun responses to messages as well as being able to pla
 
 MitchBot's Python dependencies are managed by pipenv. Install pipenv and run `pipenv install` to set them up and then `pipenv shell` to enter the resulting Python virtual environment.
 
-### Weird dependencies
+### Non-Python dependencies
+
+- **Cairo**: MitchBot uses the CairoSVG Python package to render some of the daily puzzles, and the CairoSVG Python package depends on the Cairo library. On Linux, Cairo is probably already installed, or you can get it from a package manager; on Windows, the easiest way to get Cairo is unfortunately to install the SVG editor Inkscape and then add C:/Program Files/Inkscape/ to your system PATH.
+- **Blender**: MitchBot also uses Blender to render some puzzle templates. Blender is freely obtainable through blender.org.
+- **Fonts**: MitchBot's puzzle templates use the fonts Liberation Sans, Mario 256, Beth Ellen, fs Tahoma 8px, and Arial. These fonts are available for free on the Internet. If they are not installed on your system, some random fallback font will probably be used.
+
+#### Dependencies for Features That Aren't Currently Maintained:
 
 - ffmpeg: MitchBot currently uses ffmpeg to convert audio to the Opus format that Discord likes. To use this audio functionality, the ffmpeg and ffprobe executable files should be available from your command line. They are free to download; to make them command-line accessible on Windows, place them in a directory that's listed in the PATH environment variable.
 - SAPI5: MitchBot currently uses the default Windows text-to-speech engine SAPI5. So, that functionality only works on Windows at the moment, sorry
