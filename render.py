@@ -12,6 +12,7 @@ from io import BytesIO
 import abc
 from timeit import default_timer
 from xml.dom import minidom
+import sys
 
 from PIL import Image, ImageFont, ImageDraw
 from images.svg_hexagon_generator import make_hexagon
@@ -238,8 +239,14 @@ PuzzleRenderer.available_renderers.append(
 async def test():
     from puzzle import Puzzle
     rs = PuzzleRenderer.available_renderers
-    print(f"{len(rs)} renderers available. testing...")
+    if len(sys.argv) > 1:
+        print(f"looking for renderers with {sys.argv[1]} in name")
+    else:
+        print(f"{len(rs)} renderers available. testing...")
     for r in rs:
+        if len(sys.argv) > 1:
+            if sys.argv[1] not in str(r):
+                continue
         start = default_timer()
         render = await r.render(Puzzle(-1, "A", ["B", "C", "D", "E", "F", "G"], [], []))
         type = ".png" if render[0:4] == b"\x89PNG" else ".gif"
