@@ -12,7 +12,7 @@ MitchBot's Python dependencies are managed by pipenv. Install pipenv and run `pi
 
 - **Cairo**: MitchBot uses the CairoSVG Python package to render some of the daily puzzles, and the CairoSVG Python package depends on the Cairo library. On Linux, Cairo is probably already installed, or you can get it from a package manager; on Windows, the easiest way to get Cairo is unfortunately to install the SVG editor Inkscape and then add C:/Program Files/Inkscape/ to your system PATH.
 - **Blender**: MitchBot also uses Blender to render some puzzle templates. Blender is freely obtainable through blender.org.
-- **Fonts**: MitchBot's puzzle templates use the fonts Liberation Sans, Mario 256, Kingthings Exeter, fs Tahoma 8px, and Arial. These fonts are available for free on the Internet. If they are not installed on your system, some random fallback font will probably be used.
+- **Fonts**: MitchBot's puzzle templates use the fonts Liberation Sans, Mario 256, Kingthings Exeter, fs Tahoma 8px, Minecraft Font by JDGraphics, and Arial. These fonts are available for free on the Internet. If they are not installed on your system, some random fallback font will probably be used.
 
 ### Dependencies for Features That Aren't Currently Maintained:
 
