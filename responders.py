@@ -2,9 +2,11 @@ import asyncio
 import datetime
 from io import BytesIO
 import random
+import re
 
 import discord
 from PIL import Image
+from discord.message import Message
 
 from MitchBot import MitchClient, MessageResponder
 from db.queries import get_random_nickname
@@ -108,3 +110,21 @@ def add_responses(bot: MitchClient):
         mess = "Hello, ✨" + get_random_nickname()+"✨"
         await message.reply(mess)
     bot.register_responder(MessageResponder("nickname", nickname, require_mention=True))
+
+    async def add_emoji(message: discord.Message):
+        emoji_name_match = re.search("make (.*) emoji", message.content)
+        if (emoji_name_match and
+            len(emoji_name_match.group(1).strip()) and
+                len(message.attachments) > 0):
+            emoji_name = emoji_name_match.group(1).strip()
+            emoji_file = BytesIO()
+            await message.attachments[0].save(emoji_file, seek_begin=True)
+            emoji_file = emoji_file.read()
+            try:
+                created_emoji = await message.guild.create_custom_emoji(name=emoji_name, image=emoji_file)
+                await message.channel.send("Done "+str(created_emoji))
+            except:
+                await message.channel.send("I couldn't :( the file was possibly too big or Discord is just fucking up")
+        else:
+            await message.channel.send("to make emoji, send something like \"make great_auk emoji\" and attach an image file with it")
+    bot.register_responder(MessageResponder("make .* emoji", add_emoji, require_mention=True))

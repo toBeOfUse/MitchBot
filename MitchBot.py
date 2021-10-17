@@ -59,14 +59,15 @@ class MessageResponder():
 
     def react_to(self, message: discord.Message):
         '''
-        Reacts to messages by executing a function if the certain condition is fulfilled.
+        Reacts to messages by executing a function if the certain condition is
+        fulfilled. Returns True if it called the function.
         '''
         if message.author.bot:
-            return
+            return False
         match = False
         if self.require_mention:
             if (not message.guild.me.mentioned_in(message)) or message.mention_everyone:
-                return
+                return False
         if isinstance(self.condition, str):
             if re.search(self.condition, message.content, re.IGNORECASE):
                 match = True
@@ -138,8 +139,9 @@ class MitchClient(discord.Client):
 
         if not responded and self.user.mentioned_in(message) and not message.mention_everyone:
             response = random.choice(
-                ["completely correct", "i'm afraid not", "i'm not too sure",
-                 "ik spreek geen engels", "only on tuesdays", "seize the means of production"])
+                ["Completely correct", "I'm afraid not", "I'm not too sure",
+                 "No-one has said that before", "Only on Tuesdays",
+                 "Seize the means of production"])
             await message.reply(response + ", "+message.author.display_name+".")
 
     async def on_disconnect(self):
