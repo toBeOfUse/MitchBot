@@ -339,14 +339,19 @@ class RandomNoRepeats:
             "(last_access_id=-1 or last_access_id!=?) order by random() limit 1",
             (self.name, least_uses, last_access)).fetchone()[0]
         # set the uses count of the item that was just used to the greatest number of
-        # uses of any item in that named group. this number may be inaccurate for
-        # items that were just inserted and are being used for the first time, but we
-        # do not want such items to be used e. g. 5 times in a row to catch up in the
-        # case that all the other items have been used at least 5 times, so this is
-        # the best way to handle that.
+        # uses of any item in that named group, unless all the numbers of uses are
+        # equal, in which case we need to increment from the current greatest number
+        # of uses. this number may be inaccurate for items that were just inserted
+        # and are being used for the first time, but we do not want such items to be
+        # used e. g. 5 times in a row to catch up in the case that all the other
+        # items have been used at least 5 times, so this is the best way to handle
+        # that.
+        new_uses = most_uses
+        if most_uses == least_uses:
+            new_uses +=1
         self.cursor.execute(
             "update random set uses=?, last_access_id=? where item=?",
-            (most_uses, self.get_new_access_id(), item)
+            (new_uses, self.get_new_access_id(), item)
         )
         self.random_db.commit()
         return self.item_lookup[item]
