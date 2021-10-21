@@ -24,7 +24,7 @@ class PuzzleRenderer(metaclass=abc.ABCMeta):
     and __repr__, on principle and so they work with instances of RandomNoRepeats.
     available_renderers should be populated with instances of subclasses to make them
     chooseable by Puzzle.render()."""
-    available_renderers: list["PuzzleRenderer"] = []
+    available_renderers: list[PuzzleRenderer] = []
 
     @abc.abstractmethod
     def __init__(self):
@@ -194,7 +194,7 @@ class BlenderRenderer(PuzzleRenderer):
 
     async def render(self, puzzle: Puzzle):
         letters = puzzle.center+("".join(puzzle.outside))
-        output_path = Path.cwd()/("images/blenderrenders/"+letters)
+        output_path = Path.cwd()/("images/temp/"+letters)
         blender = await asyncio.create_subprocess_exec(
             "blender", "-b", self.blender_file_path,
             "-E", "CYCLES",
@@ -221,6 +221,123 @@ class BlenderRenderer(PuzzleRenderer):
         return f"BlenderRenderer for {self.blender_file_path}"
 
 
+class LetterSwapRenderer(PuzzleRenderer):
+    def __init__(
+            self,
+            base_image_path: PathLike,
+            image_palette: PathLike,
+            letter_locations: list[tuple[int, int]],
+            frames_path: PathLike,
+            frames_size: tuple[int, int],
+            frames_per_letter: int,
+            pause_length: int):
+        """Creates a renderer that creates a GIF animation in which letters switch back
+        and forth and transition between each other. Created with split-flap displays
+        in mind.
+
+        Args:
+            base_image_path (PathLike): Path to the image upon which the letters will
+                be superimposed
+            base_image_palette (PathLike): Path to the palette for the gif. This should
+                have been generated with the ffmpeg palettegen filter.
+            letter_locations (list[tuple[int, int]]): List of the upper left corners
+                of the 7 boxes that letters should be placed in, starting with the box
+                for the center letter
+            frames_path (PathLike): Path to the folder that contains the frames that
+                display the letters and transition between them.
+            frames_size (tuple[int, int]): Size of the boxes that the letters should
+                be placed in: (width, height)
+            frames_per_letter (int): How many frames it takes to transition from one
+                letter to the other using the frames in `frames_path`.
+            pause_length (int): How long to pause, in seconds, between each letter 
+                transition.
+        """
+        self.base_image_path = base_image_path
+        self.image_palette = image_palette
+        self.letter_locations = letter_locations
+        self.frames_path = frames_path
+        self.frames_size = frames_size
+        self.frames_per_letter = frames_per_letter
+        self.pause_length = pause_length
+
+    @property
+    def total_frames(self):
+        return self.frames_per_letter*26
+
+    def __repr__(self):
+        return f"LetterSwapRenderer for {self.base_image_path}"
+
+    def get_frame_for_letter(self, letter: str) -> list[int]:
+        return (ord(letter)-ord("A"))*self.frames_per_letter
+
+    def get_frames_between_letters(self, start_letter: str, end_letter: str):
+        start = self.get_frame_for_letter(start_letter)
+        end = self.get_frame_for_letter(end_letter)
+        if end < start:
+            end += self.total_frames
+        return list(x % self.total_frames for x in range(start, end))
+
+    def resize_frame(self, frame: Image.Image) -> Image.Image:
+        if (frame.width, frame.height) != self.frames_size:
+            return frame.resize(self.frames_size)
+        else:
+            return frame
+
+    def open_frame(self, frame_path: PathLike) -> Image.Image:
+        return self.resize_frame(Image.open(frame_path))
+
+    async def render(self, puzzle: Puzzle):
+        base_image = Image.open(self.base_image_path)
+        frame_paths = sorted(
+            list(Path(self.frames_path).glob("*")),
+            key=lambda x: int(x.stem))
+        center_frame = self.get_frame_for_letter(puzzle.center)
+        center_frame_image = self.open_frame(frame_paths[center_frame])
+        base_image.paste(center_frame_image, self.letter_locations[0])
+        frame_count = 0
+        freeze_frames = [0]
+        for i in range(6):
+            frame_image = self.open_frame(frame_paths[self.get_frame_for_letter(puzzle.outside[i])])
+            base_image.paste(frame_image, self.letter_locations[i+1])
+        base_image.save("images/temp/"+str(frame_count)+".bmp")
+        frame_count += 1
+        swappable_index_pairs = [(0, 1), (2, 3), (4, 5), (1, 0), (3, 2), (5, 4)]
+        swappable_locations = self.letter_locations[1:]
+        for indexes in swappable_index_pairs:
+            pos_1_frames = self.get_frames_between_letters(
+                puzzle.outside[indexes[0]], puzzle.outside[indexes[1]])
+            pos_2_frames = self.get_frames_between_letters(
+                puzzle.outside[indexes[1]], puzzle.outside[indexes[0]])
+            for i in range(max(len(pos_1_frames), len(pos_2_frames))):
+                if i < len(pos_1_frames):
+                    base_image.paste(
+                        self.open_frame(frame_paths[pos_1_frames[i]]),
+                        swappable_locations[indexes[0]]
+                    )
+                if i < len(pos_2_frames):
+                    base_image.paste(
+                        self.open_frame(frame_paths[pos_2_frames[i]]),
+                        swappable_locations[indexes[1]]
+                    )
+                base_image.save("images/temp/"+str(frame_count)+".bmp")
+                frame_count += 1
+            freeze_frames.append(frame_count-1)
+        ffmpeg_pauses = "+".join([f"gt(N,{x})*{self.pause_length}/TB" for x in freeze_frames])
+        ffmpeg_command = (
+            f"ffmpeg -framerate 45 -i images/temp/%d.bmp -i {self.image_palette} " +
+            f"-filter_complex \"setpts='PTS-STARTPTS+({ffmpeg_pauses})'," +
+            "paletteuse\" -loop 0 -y images/temp/letter_swap_output.gif")
+        print("ffmpeg command", ffmpeg_command)
+
+        ffmpeg = await asyncio.create_subprocess_shell(ffmpeg_command)
+        await ffmpeg.wait()
+        for temp_frame in Path("images/temp/").glob("*.bmp"):
+            temp_frame.unlink()
+        with open("images/temp/letter_swap_output.gif", "rb") as result_file:
+            result = result_file.read()
+            return result
+
+
 for path in Path("images/").glob("puzzle_template_*.svg"):
     PuzzleRenderer.available_renderers.append(SVGTextTemplateRenderer(path))
 
@@ -234,6 +351,16 @@ PuzzleRenderer.available_renderers.append(
         Path("images", "spinf1.gif"), Path("images", "spin.gif"),
         (300, 300), 90
     ))
+
+# PuzzleRenderer.available_renderers.append(
+#     LetterSwapRenderer(
+#         "images/trainstationbase.png",
+#         "images/trainstationpalette.png",
+#         [(722, 214), (653, 214), (790, 214), (688, 125), (756, 125), (688, 302), (756, 302)],
+#         "fonts/split-flap/resized/",
+#         (25, 40), 5, 5
+#     )
+# )
 
 
 async def test():
