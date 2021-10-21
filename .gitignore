@@ -6,7 +6,7 @@ testpuzzles.db
 *.exe
 *.bin
 images/testrenders/*
-images/blenderrenders/*
+images/temp/*
 *.blend1
 
 # Byte-compiled / optimized / DLL files
