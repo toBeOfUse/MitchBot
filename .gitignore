@@ -6,7 +6,9 @@ testpuzzles.db
 *.exe
 *.bin
 images/testrenders/*
+!images/testrenders/.gitkeep
 images/temp/*
+!images/temp/.gitkeep
 *.blend1
 
 # Byte-compiled / optimized / DLL files
