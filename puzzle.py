@@ -117,14 +117,11 @@ class Puzzle():
                 continue
             if word.lower() != word:
                 continue
-            characters_count = True
             for character in word:
                 if character.upper() not in (self.outside + [self.center]):
-                    characters_count = False
                     break
-            if not characters_count:
-                continue
-            result.append(word)
+            else:
+                result.append(word)
         return result
 
     async def render(self, renderer: PuzzleRenderer = None):
@@ -144,6 +141,7 @@ class Puzzle():
         API-oriented code should persist this data itself, but oh well it's just one
         integer"""
         self.message_id = message.id
+        self.save()
 
     @classmethod
     async def fetch_from_nyt(cls) -> "Puzzle":

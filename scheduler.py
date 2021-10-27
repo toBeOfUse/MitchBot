@@ -27,13 +27,13 @@ async def do_thing_after(seconds: float, thing: Callable):
 
 def get_seconds_before_next(time_of_day: time) -> float:
     """Utility function to get the number of seconds before the next time a time of
-    day occurs in UTC"""
+    day occurs."""
     now = datetime.now(tz=timezone.utc).astimezone(time_of_day.tzinfo)
     if now.time() >= time_of_day:
         next_puzzle_day = now.date()+timedelta(days=1)
     else:
         next_puzzle_day = now.date()
-    next_puzzle_time = datetime.combine(next_puzzle_day, time_of_day)
+    next_puzzle_time = datetime.combine(next_puzzle_day, time_of_day).astimezone(time_of_day.tzinfo)
     result = (next_puzzle_time - now).total_seconds()
     return result
 
@@ -53,12 +53,14 @@ def schedule_tasks(client: MitchClient):
     # puzzle scheduling:
     puzzle_channel_id = 814334169299157001  # production
     # puzzle_channel_id = 888301952067325952  # test
-    fetch_new_puzzle_at = time(hour=7, tzinfo=ZoneInfo("America/New_York"))
-    # fetch_new_puzzle_at = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)
-    #                        ).time().replace(tzinfo=timezone.utc)  # test
+    et = ZoneInfo("America/New_York")
+    fetch_new_puzzle_at = time(hour=6, minute=55, tzinfo=et)
+    # fetch_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=10)).time()  # test
+    post_new_puzzle_at = time(hour=7, tzinfo=ZoneInfo("America/New_York"))
+    # post_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=3*60)).time()  # test
     current_puzzle: Optional[Puzzle] = None
 
-    async def load_puzzle():
+    async def maintain_last_posted_puzzle():
         nonlocal current_puzzle
         current_puzzle = Puzzle.retrieve_last_saved()
         if current_puzzle is not None:
@@ -77,48 +79,53 @@ def schedule_tasks(client: MitchClient):
         else:
             print("could not retrieve current puzzle from database")
 
-    asyncio.create_task(load_puzzle())
+    asyncio.create_task(maintain_last_posted_puzzle())
 
     async def send_new_puzzle():
         nonlocal current_puzzle
         channel = client.get_channel(puzzle_channel_id)
-        with channel.typing():
-            previous_puzzle = current_puzzle
-            current_puzzle = await Puzzle.fetch_from_nyt()
-            current_puzzle.persist()
-            message_text = random.choice(["Good morning",
-                                          "Goedemorgen",
-                                          "Bon matin",
-                                          "Ohayō",
-                                          "Back at it again at Krispy Kremes",
-                                          "Hello",
-                                          "Bleep Bloop",
-                                          "Here is a puzzle",
-                                          "Guten Morgen"])+" ✨"
-            alt_words = current_puzzle.get_wiktionary_alternative_answers()
-            if len(alt_words) > 1:
-                alt_words_sample = random.sample(alt_words, min(len(alt_words), 5))
-                alt_words_string = (", ".join(alt_words_sample[:-1]) +
-                                    ", and "+alt_words_sample[-1]+". ")
+        previous_puzzle = current_puzzle
+        current_puzzle = await Puzzle.fetch_from_nyt()
+        current_puzzle.persist()
+        message_text = random.choice(["Good morning",
+                                      "Goedemorgen",
+                                      "Bon matin",
+                                      "Ohayō",
+                                      "Back at it again at Krispy Kremes",
+                                      "Hello",
+                                      "Bleep Bloop",
+                                      "Here is a puzzle",
+                                      "Guten Morgen"])+" ✨"
+        alt_words = current_puzzle.get_wiktionary_alternative_answers()
+        if len(alt_words) > 1:
+            alt_words_sample = random.sample(alt_words, min(len(alt_words), 5))
+            alt_words_string = (", ".join(alt_words_sample[:-1]) +
+                                ", and "+alt_words_sample[-1]+". ")
+            message_text += (
+                " Words from Wiktionary that should count today that " +
+                "the NYT fails to acknowledge include: " + alt_words_string)
+        if previous_puzzle is not None:
+            previous_words = previous_puzzle.get_unguessed_words()
+            if len(previous_words) > 1:
                 message_text += (
-                    " Words from Wiktionary that should count today that " +
-                    "the NYT fails to acknowledge include: " + alt_words_string)
-            if previous_puzzle is not None:
-                previous_words = previous_puzzle.get_unguessed_words()
-                if len(previous_words) > 1:
-                    message_text += (
-                        "The least common word that no one got for yesterday's "
-                        + f"puzzle was \"{previous_words[0]};\" "
-                        + f"the most common word was \"{previous_words[-1]}.\""
-                    )
-            puzzle_image = await current_puzzle.render()
-            puzzle_filename = "puzzle" + (".png" if puzzle_image[0:4] == b"\x89PNG" else ".gif")
-            await channel.send(
-                content=message_text,
-                file=discord.File(BytesIO(puzzle_image), puzzle_filename))
-            status_message = await channel.send(content="Words found by you guys so far: None~")
-            current_puzzle.associate_with_message(status_message)
-            current_puzzle.persist()
+                    "The least common word that no one got for yesterday's "
+                    + f"puzzle was \"{previous_words[0]};\" "
+                    + f"the most common word was \"{previous_words[-1]}.\""
+                )
+        puzzle_image = await current_puzzle.render()  # takes between 0.5 and 160 seconds, roughly
+        puzzle_filename = "puzzle" + (".png" if puzzle_image[0:4] == b"\x89PNG" else ".gif")
+        seconds_to_wait = get_seconds_before_next(post_new_puzzle_at)
+        # sanity check to try to make sure that, if rendering the image took so
+        # long that it's already a little bit after post_new_puzzle_at, we don't
+        # wait until the next day
+        if seconds_to_wait < 60*60:
+            print(f"rendered puzzle; waiting {seconds_to_wait} seconds to post")
+            await asyncio.sleep(seconds_to_wait)
+        await channel.send(
+            content=message_text,
+            file=discord.File(BytesIO(puzzle_image), puzzle_filename))
+        status_message = await channel.send(content="Words found by you guys so far: None~")
+        current_puzzle.associate_with_message(status_message)
 
     asyncio.create_task(repeatedly_schedule_task_for(fetch_new_puzzle_at, send_new_puzzle))
 
