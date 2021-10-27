@@ -348,7 +348,7 @@ class RandomNoRepeats:
         # that.
         new_uses = most_uses
         if most_uses == least_uses:
-            new_uses +=1
+            new_uses += 1
         self.cursor.execute(
             "update random set uses=?, last_access_id=? where item=?",
             (new_uses, self.get_new_access_id(), item)
@@ -385,9 +385,24 @@ if __name__ == "__main__":
     print()
     print("random nickname:", get_random_nickname())
     print()
-    print("9 outputs from RandomNoRepeats coin flips:")
+    RandomNoRepeats.random_db = sqlite3.connect(":memory:")
+    RandomNoRepeats.cursor = RandomNoRepeats.random_db.cursor()
+    print("10 outputs from RandomNoRepeats coin flips:")
     flipper = RandomNoRepeats(["heads", "tails"], "coins")
-    print(", ".join(flipper.get_item() for i in range(9)))
-    print("9 outputs from RandomNoRepeats coin flips with a replaced item:")
-    new_flipper = RandomNoRepeats(["heads", "not heads"], "coins")
-    print(", ".join(new_flipper.get_item() for i in range(9)))
+    test_flips = [flipper.get_item() for _ in range(10)]
+    print(", ".join(test_flips))
+    for i in range(7):
+        subsequence = test_flips[i:i+2]
+        assert subsequence[0] != subsequence[1], "no same result twice in a row"
+    print("10 outputs from RandomNoRepeats coin flips with a replaced item:")
+    new_flipper = RandomNoRepeats(["heads", "tails", "not heads"], "coins")
+    test_flops = [new_flipper.get_item() for _ in range(10)]
+    print(", ".join(test_flops))
+    assert test_flops[0] == "not heads", "new elements chosen immediately"
+    for j in range(1, 8, 3):
+        subsequence = test_flops[j:j+3]
+        assert subsequence[0] != subsequence[1], "no same result twice in a row"
+        assert subsequence[1] != subsequence[2], "no same result twice in a row"
+        for element in ("heads", "tails", "not heads"):
+            assert element in subsequence, "subsequence draws from all available elements equally"
+    print("tests pased")
