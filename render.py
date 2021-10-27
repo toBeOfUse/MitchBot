@@ -13,6 +13,7 @@ import abc
 from timeit import default_timer
 from xml.dom import minidom
 import sys
+import random
 
 from PIL import Image, ImageFont, ImageDraw
 from images.svg_hexagon_generator import make_hexagon
@@ -302,6 +303,17 @@ class LetterSwapRenderer(PuzzleRenderer):
         base_image.save("images/temp/"+str(frame_count)+".bmp")
         frame_count += 1
         swappable_index_pairs = [(0, 1), (2, 3), (4, 5), (1, 0), (3, 2), (5, 4)]
+        total_frames = 1
+        for indexes in swappable_index_pairs:
+            total_frames += max(
+                [len(
+                    self.get_frames_between_letters(
+                        puzzle.outside[indexes[0]], puzzle.outside[indexes[1]])),
+                 len(
+                    self.get_frames_between_letters(
+                        puzzle.outside[indexes[1]], puzzle.outside[indexes[0]]))
+                 ]
+            )
         swappable_locations = self.letter_locations[1:]
         for indexes in swappable_index_pairs:
             pos_1_frames = self.get_frames_between_letters(
@@ -312,16 +324,19 @@ class LetterSwapRenderer(PuzzleRenderer):
                 if i < len(pos_1_frames):
                     base_image.paste(
                         self.open_frame(frame_paths[pos_1_frames[i]]),
-                        swappable_locations[indexes[0]]
+                        swappable_locations[min(indexes)]
                     )
                 if i < len(pos_2_frames):
                     base_image.paste(
                         self.open_frame(frame_paths[pos_2_frames[i]]),
-                        swappable_locations[indexes[1]]
+                        swappable_locations[max(indexes)]
                     )
                 base_image.save("images/temp/"+str(frame_count)+".bmp")
                 frame_count += 1
+                if frame_count % 10 == 0:
+                    print(f"\remitted {frame_count}/{total_frames} frames", end="")
             freeze_frames.append(frame_count-1)
+        print(f"\remitted all {total_frames} frames")
         ffmpeg_pauses = "+".join([f"gt(N,{x})*{self.pause_length}/TB" for x in freeze_frames])
         ffmpeg_command = (
             f"ffmpeg -framerate 45 -i images/temp/%d.bmp -i {self.image_palette} " +
@@ -352,20 +367,21 @@ PuzzleRenderer.available_renderers.append(
         (300, 300), 90
     ))
 
-# PuzzleRenderer.available_renderers.append(
-#     LetterSwapRenderer(
-#         "images/trainstationbase.png",
-#         "images/trainstationpalette.png",
-#         [(722, 214), (653, 214), (790, 214), (688, 125), (756, 125), (688, 302), (756, 302)],
-#         "fonts/split-flap/resized/",
-#         (25, 40), 5, 5
-#     )
-# )
+PuzzleRenderer.available_renderers.append(
+    LetterSwapRenderer(
+        "images/trainstationbase.png",
+        "images/trainstationpalette.png",
+        [(764, 215), (695, 215), (833, 215), (730, 126), (799, 304), (799, 126), (730, 304)],
+        "fonts/split-flap/resized/",
+        (25, 40), 5, 20
+    )
+)
 
 
 async def test():
     from puzzle import Puzzle
     rs = PuzzleRenderer.available_renderers
+    letters = random.sample(["B", "C", "D", "E", "F", "G"], 6)
     if len(sys.argv) > 1:
         print(f"looking for renderers with {sys.argv[1]} in name")
     else:
@@ -375,7 +391,7 @@ async def test():
             if sys.argv[1] not in str(r):
                 continue
         start = default_timer()
-        render = await r.render(Puzzle(-1, "A", ["B", "C", "D", "E", "F", "G"], [], []))
+        render = await r.render(Puzzle(-1, "A", letters, [], []))
         type = ".png" if render[0:4] == b"\x89PNG" else ".gif"
         renderer_name_slug = str(r).replace(" ", "_").replace("\\", "-").replace("/", "-")
         with open(f'images/testrenders/{renderer_name_slug}{type}', "wb+") as output:
