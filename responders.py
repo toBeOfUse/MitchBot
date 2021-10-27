@@ -126,5 +126,5 @@ def add_responses(bot: MitchClient):
             except:
                 await message.channel.send("I couldn't :( the file was possibly too big or Discord is just fucking up")
         else:
-            await message.channel.send("to make emoji, send something like \"make great_auk emoji\" and attach an image file with it")
+            await message.channel.send("To make emoji, send something like \"make great_auk emoji\" and attach an image file with it")
     bot.register_responder(MessageResponder("make .* emoji", add_emoji, require_mention=True))
