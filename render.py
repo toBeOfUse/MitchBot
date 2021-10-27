@@ -371,9 +371,9 @@ PuzzleRenderer.available_renderers.append(
     LetterSwapRenderer(
         "images/trainstationbase.png",
         "images/trainstationpalette.png",
-        [(764, 215), (695, 215), (833, 215), (730, 126), (799, 304), (799, 126), (730, 304)],
+        [(586, 277), (479, 277), (693, 277), (532, 138), (640, 415), (533, 415), (640, 138)],
         "fonts/split-flap/resized/",
-        (25, 40), 5, 20
+        (40, 66), 5, 20
     )
 )
 
