@@ -54,56 +54,71 @@ class SVGTemplateRenderer(PuzzleRenderer):
 
 
 class SVGTextTemplateRenderer(SVGTemplateRenderer):
-    @staticmethod
-    def is_placeholder_text_element(text_element: minidom.Element):
-        """Detects svg <text> elements that are formatted to hold placeholder text
-        for Puzzle letters. Such elements are expected to have one text node child
-        whose content starts with a $."""
-        return (len(text_element.childNodes) == 1 and
-                type(text_element.firstChild) is minidom.Text and
-                text_element.firstChild.nodeValue.startswith("$"))
+    class TextElement:
+        def __init__(self, base: minidom.Element):
+            assert base.tagName == "text"
+            self.base = base
+
+        def _get_only_text_node(self) -> minidom.Text:
+            if len(self.base.childNodes) > 1:
+                return None
+            node = self.base.firstChild
+            while type(node) is not minidom.Text:
+                node = node.firstChild
+                if node is None or len(node.childNodes) > 1:
+                    return None
+            return node
+
+        def is_placeholder(self) -> bool:
+            """Detects svg <text> elements that are formatted to hold placeholder text
+            for Puzzle letters. Such elements are expected to have content starting with a $."""
+            text_node = self._get_only_text_node()
+            return text_node is not None and (
+                text_node.nodeValue == "$L" or
+                text_node.nodeValue == "$C")
+
+        def get_text(self) -> str:
+            return self._get_only_text_node().nodeValue
+
+        def set_text(self, new_text: str) -> None:
+            self._get_only_text_node().nodeValue = new_text
 
     @staticmethod
-    def get_other_elements_in_group(text_element: minidom.Element):
+    def get_other_elements_in_group(
+            text_element: SVGTextTemplateRenderer.TextElement) -> list[
+            SVGTextTemplateRenderer.TextElement]:
         """For placeholder <text> elements, detects whether they are in an SVG group
-        (<g> tag) with other placeholder <text> siblings and returns the other
-        placeholder <text> siblings if so, returning an empty list otherwise."""
+        (<g> tag with class "letter_group") with other placeholder <text> siblings
+        and returns the other placeholder <text> siblings if so, returning an empty
+        list otherwise."""
+        text_element = text_element.base
         parent: minidom.Element = text_element.parentNode
-        if parent.tagName == "g":
-            only_element_children = all((type(x) is minidom.Element or
-                                         (type(x) is minidom.Text and x.data.strip() == ""))
-                                        for x in parent.childNodes)
-            only_text_element_children = (only_element_children and all(
-                x.tagName == "text" for x in parent.childNodes if type(x) is minidom.Element))
-            has_placeholder_children = (only_text_element_children and any(
-                SVGTextTemplateRenderer.is_placeholder_text_element(x)
-                for x in parent.childNodes if type(x) is minidom.Element))
-            if has_placeholder_children:
-                siblings = [x for x in parent.childNodes
-                            if type(x) is minidom.Element and
-                            SVGTextTemplateRenderer.is_placeholder_text_element(x)]
-                return siblings
+        if parent.tagName == "g" and parent.getAttribute("class") == "letter_group":
+            text_element_children = [
+                SVGTextTemplateRenderer.TextElement(x) for x in parent.childNodes
+                if type(x) is minidom.Element and x.tagName == "text"]
+            placeholder_children = [x for x in text_element_children if x.is_placeholder()]
+            return placeholder_children
         return []
 
     async def render(self, puzzle: Puzzle, output_width: int = 1200) -> bytes:
         """Finds placeholder <text> nodes (those with "$L" or "$C" as their content)
         in the SVG file passed to the constructor and replaces that content with the
-        letters from the puzzle. If multiple placeholder <text> nodes are by
-        themselves in a <g> group (according to is_placeholder_text_element), they
-        are all set to the same letter."""
+        letters from the puzzle. If multiple placeholder <text> nodes are in a
+        g.letter_group group), they are all set to the same letter."""
         letters = iter(puzzle.outside)
         base: minidom.Document = minidom.parseString(self.base_svg)
-        for text_element in base.getElementsByTagName("text"):
-            if self.is_placeholder_text_element(text_element):
-                if text_element.firstChild.nodeValue == "$C":
-                    text_element.firstChild.nodeValue = puzzle.center
+        for text_element in map(self.TextElement, base.getElementsByTagName("text")):
+            if text_element.is_placeholder():
+                if text_element.get_text() == "$C":
+                    text_element.set_text(puzzle.center)
                     for sibling in self.get_other_elements_in_group(text_element):
-                        sibling.firstChild.nodeValue = puzzle.center
-                elif text_element.firstChild.nodeValue == "$L":
+                        sibling.set_text(puzzle.center)
+                elif text_element.get_text() == "$L":
                     letter = next(letters)
-                    text_element.firstChild.nodeValue = letter
+                    text_element.set_text(letter)
                     for sibling in self.get_other_elements_in_group(text_element):
-                        sibling.firstChild.nodeValue = letter
+                        sibling.set_text(letter)
         return svg2png(base.toxml(encoding="utf-8"), output_width=output_width)
 
 
