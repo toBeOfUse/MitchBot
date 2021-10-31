@@ -5,11 +5,11 @@
    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
    xmlns:svg="http://www.w3.org/2000/svg"
    xmlns="http://www.w3.org/2000/svg"
-   id="svg8"
-   version="1.1"
-   viewBox="0 0 158.75 158.75"
+   width="158.75mm"
    height="158.75mm"
-   width="158.75mm">
+   viewBox="0 0 158.75 158.75"
+   version="1.1"
+   id="svg8">
   <defs
      id="defs2" />
   <metadata
@@ -24,148 +24,134 @@
       </cc:Work>
     </rdf:RDF>
   </metadata>
-  <g
-     transform="translate(-18.898808,-56.607147)"
-     id="layer1">
-    <text
-       id="text828"
-       y="93.214973"
-       x="96.674248"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.39999962px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       xml:space="preserve"><tspan
-         style="stroke-width:0.26458332"
-         y="93.214973"
-         x="96.674248"
-         id="tspan826">12</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.39999962px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       x="99.278107"
-       y="196.44179"
-       id="text832"><tspan
-         id="tspan830"
-         x="99.278107"
-         y="196.44179"
-         style="stroke-width:0.26458332">6</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.39999962px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       x="142.97264"
-       y="118.93362"
-       id="text838"><tspan
-         id="tspan836"
-         x="142.97264"
-         y="118.93362"
-         style="stroke-width:0.26458332">2</tspan></text>
-    <text
-       id="text842"
-       y="99.422951"
-       x="123.60231"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.39999962px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       xml:space="preserve"><tspan
-         style="fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
-         y="99.422951"
-         x="123.60231"
-         id="tspan840">$L</tspan></text>
-    <text
-       id="text846"
-       y="132.80714"
-       x="147.48631"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.39999962px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       xml:space="preserve"><tspan
-         id="tspan848"
-         style="stroke-width:0.26458332"
-         y="151.85715"
-         x="147.48631" /></text>
-    <text
-       id="text854"
-       y="144.58112"
-       x="149.60297"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.39999962px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       xml:space="preserve"><tspan
-         style="fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
-         y="144.58112"
-         x="149.60297"
-         id="tspan852">$L</tspan></text>
-    <text
-       id="text858"
-       y="170.24568"
-       x="142.65767"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.39999962px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       xml:space="preserve"><tspan
-         style="stroke-width:0.26458332"
-         y="170.24568"
-         x="142.65767"
-         id="tspan856">4</tspan></text>
-    <text
-       id="text862"
-       y="188.43579"
-       x="124.86443"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.39999962px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       xml:space="preserve"><tspan
-         style="fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
-         y="188.43579"
-         x="124.86443"
-         id="tspan860">$L</tspan></text>
-    <text
-       id="text866"
-       y="189.62642"
-       x="72.344635"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.39999962px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       xml:space="preserve"><tspan
-         style="fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
-         y="189.62642"
-         x="72.344635"
-         id="tspan864">$L</tspan></text>
-    <text
-       id="text870"
-       y="170.17955"
-       x="53.228493"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.39999962px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       xml:space="preserve"><tspan
-         style="stroke-width:0.26458332"
-         y="170.17955"
-         x="53.228493"
-         id="tspan868">8</tspan></text>
-    <text
-       id="text874"
-       y="144.77954"
-       x="46.746204"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.39999962px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       xml:space="preserve"><tspan
-         style="fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
-         y="144.77954"
-         x="46.746204"
-         id="tspan872">$L</tspan></text>
-    <text
-       id="text878"
-       y="118.85038"
-       x="53.360786"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.39999962px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       xml:space="preserve"><tspan
-         style="stroke-width:0.26458332"
-         y="118.85038"
-         x="53.360786"
-         id="tspan876">10</tspan></text>
-    <text
-       id="text882"
-       y="100.991"
-       x="71.352455"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.39999962px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       xml:space="preserve"><tspan
-         style="fill:#ffffff;fill-opacity:1;stroke-width:0.26458332"
-         y="100.991"
-         x="71.352455"
-         id="tspan880">$L</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:25.39999962px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#ffdd55;fill-opacity:1;stroke:none;stroke-width:0.26458332;"
-       x="98.008186"
-       y="144.71716"
-       id="text886"><tspan
-         id="tspan884"
-         x="98.008186"
-         y="144.71716"
-         style="fill:#ffdd55;fill-opacity:1;stroke-width:0.26458332;">$C</tspan></text>
-  </g>
+  <text
+     id="text882"
+     y="42.863995"
+     x="52.889591"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.57777786px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+     xml:space="preserve"><tspan
+       style="fill:#ffffff;stroke-width:0.26458332"
+       y="42.863995"
+       x="52.889591"
+       id="tspan880">$L</tspan></text>
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.57777786px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+     x="105.03263"
+     y="41.972153"
+     id="text886"><tspan
+       id="tspan884"
+       x="105.03263"
+       y="41.972153"
+       style="fill:#ffffff;stroke-width:0.26458332">$L</tspan></text>
+  <text
+     id="text890"
+     y="86.861542"
+     x="130.53932"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.57777786px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+     xml:space="preserve"><tspan
+       style="fill:#ffffff;stroke-width:0.26458332"
+       y="86.861542"
+       x="130.53932"
+       id="tspan888">$L</tspan></text>
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.57777786px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+     x="105.68665"
+     y="131.21584"
+     id="text894"><tspan
+       id="tspan892"
+       x="105.68665"
+       y="131.21584"
+       style="fill:#ffffff;stroke-width:0.26458332">$L</tspan></text>
+  <text
+     id="text898"
+     y="131.81039"
+     x="53.24633"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.57777786px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+     xml:space="preserve"><tspan
+       style="fill:#ffffff;stroke-width:0.26458332"
+       y="131.81039"
+       x="53.24633"
+       id="tspan896">$L</tspan></text>
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.57777786px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+     x="27.145081"
+     y="87.277733"
+     id="text902"><tspan
+       id="tspan900"
+       x="27.145081"
+       y="87.277733"
+       style="fill:#ffffff;stroke-width:0.26458332">$L</tspan></text>
+  <text
+     id="text906"
+     y="87.039909"
+     x="78.990837"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.57777786px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#ffdd55;fill-opacity:1;stroke:none;stroke-width:0.26458332;"
+     xml:space="preserve"><tspan
+       style="fill:#ffdd55;stroke-width:0.26458332;"
+       y="87.039909"
+       x="78.990837"
+       id="tspan904">$C</tspan></text>
+  <text
+     id="text910"
+     y="35.794693"
+     x="77.867149"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.57777786px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+     xml:space="preserve"><tspan
+       style="stroke-width:0.26458332"
+       y="35.794693"
+       x="77.867149"
+       id="tspan908">12</tspan></text>
+  <text
+     id="text916"
+     y="60.766273"
+     x="124.38226"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.57777786px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+     xml:space="preserve"><tspan
+       style="stroke-width:0.26458332"
+       y="60.766273"
+       x="124.38226"
+       id="tspan914">2</tspan></text>
+  <text
+     id="text920"
+     y="112.96877"
+     x="123.07423"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.57777786px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+     xml:space="preserve"><tspan
+       style="stroke-width:0.26458332"
+       y="112.96877"
+       x="123.07423"
+       id="tspan918">4</tspan></text>
+  <text
+     id="text924"
+     y="138.71327"
+     x="80.146889"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.57777786px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+     xml:space="preserve"><tspan
+       style="stroke-width:0.26458332"
+       y="138.71327"
+       x="80.146889"
+       id="tspan922">6</tspan></text>
+  <text
+     id="text928"
+     y="113.14713"
+     x="34.365654"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.57777786px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+     xml:space="preserve"><tspan
+       style="stroke-width:0.26458332"
+       y="113.14713"
+       x="34.365654"
+       id="tspan926">8</tspan></text>
+  <text
+     id="text932"
+     y="60.944645"
+     x="34.603477"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.57777786px;line-height:1;font-family:'Bebas Neue';-inkscape-font-specification:'Bebas Neue';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+     xml:space="preserve"><tspan
+       style="stroke-width:0.26458332"
+       y="60.944645"
+       x="34.603477"
+       id="tspan930">10</tspan></text>
 </svg>

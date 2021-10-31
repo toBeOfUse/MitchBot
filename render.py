@@ -49,7 +49,7 @@ class SVGTemplateRenderer(PuzzleRenderer):
     def __repr__(self):
         return f"{self.__class__.__name__} for {self.template_path}"
 
-    def __eq__(self, other):
+    def __eq__(self, other: SVGTemplateRenderer):
         return self.base_svg == other.base_svg
 
 
@@ -60,12 +60,10 @@ class SVGTextTemplateRenderer(SVGTemplateRenderer):
             self.base = base
 
         def _get_only_text_node(self) -> minidom.Text:
-            if len(self.base.childNodes) > 1:
-                return None
             node = self.base.firstChild
             while type(node) is not minidom.Text:
                 node = node.firstChild
-                if node is None or len(node.childNodes) > 1:
+                if node is None:
                     return None
             return node
 
@@ -387,7 +385,7 @@ class AnimationCompositorRenderer(PuzzleRenderer):
         temp_path = Path(f"images/temp/ACR/{''.join([puzzle.center]+puzzle.outside)}")
         temp_path.mkdir(parents=True, exist_ok=True)
         result_path = f"{temp_path}.gif"
-        frames = list(Path(self.frames_path).glob("*.png"))
+        frames = sorted(list(Path(self.frames_path).glob("*.png")), key=lambda x: int(x.stem))
         for i, frame_path in enumerate(frames, start=1):
             frame = Image.open(frame_path)
             if overlay.width != frame.width or overlay.height != frame.height:
@@ -456,7 +454,7 @@ async def test():
         print(f"{len(rs)} renderers available. testing...")
     for r in rs:
         if len(sys.argv) > 1:
-            if sys.argv[1] not in str(r):
+            if sys.argv[1].lower() not in str(r).lower():
                 continue
         start = default_timer()
         render = await r.render(Puzzle(-1, "A", letters, [], []))
