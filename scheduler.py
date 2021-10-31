@@ -148,7 +148,11 @@ def schedule_tasks(client: MitchClient):
                     f'{", and " if len(found_words) > 2 else (" and " if len(found_words) > 1 else "")}' +
                     f'{found_words[-1]}||. '
                 )
-                status_text += f'({current_puzzle.percentage_complete}% complete)'
+                status_text += f'({current_puzzle.percentage_complete}% complete'
+                if current_puzzle.percentage_complete == 100:
+                    status_text += " 🎉)"
+                else:
+                    status_text += ")"
                 await status_message.edit(content=status_text)
 
             except:
