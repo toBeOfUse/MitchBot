@@ -349,21 +349,68 @@ class LetterSwapRenderer(PuzzleRenderer):
                 base_image.save("images/temp/"+str(frame_count)+".bmp")
                 frame_count += 1
                 if frame_count % 10 == 0:
-                    print(f"\remitted {frame_count}/{total_frames} frames", end="")
+                    print(
+                        f"\rLetterSwapRenderer emitted {frame_count}/{total_frames} frames",
+                        end="")
             freeze_frames.append(frame_count-1)
-        print(f"\remitted all {total_frames} frames")
+        print(f"\rLetterSwapRenderer emitted all {total_frames} frames")
         ffmpeg_pauses = "+".join([f"gt(N,{x})*{self.pause_length}/TB" for x in freeze_frames])
         ffmpeg_command = (
             f"ffmpeg -framerate 45 -i images/temp/%d.bmp -i {self.image_palette} " +
             f"-filter_complex \"setpts='PTS-STARTPTS+({ffmpeg_pauses})'," +
             "paletteuse\" -loop 0 -y images/temp/letter_swap_output.gif")
-        print("ffmpeg command", ffmpeg_command)
 
         ffmpeg = await asyncio.create_subprocess_shell(ffmpeg_command)
         await ffmpeg.wait()
         for temp_frame in Path("images/temp/").glob("*.bmp"):
             temp_frame.unlink()
         with open("images/temp/letter_swap_output.gif", "rb") as result_file:
+            result = result_file.read()
+            return result
+
+
+class AnimationCompositorRenderer(PuzzleRenderer):
+    def __init__(
+            self, frames_path: PathLike, top_layer_path: PathLike, base_framerate: int,
+            ffmpeg_filter: str):
+        self.frames_path = frames_path
+        self.top_layer_path = top_layer_path
+        self.base_framerate = base_framerate
+        self.ffmpeg_filter = ffmpeg_filter
+
+    def __repr__(self):
+        return f"Animation Compositor Renderer for frames in {self.frames_path}"
+
+    async def render(self, puzzle: Puzzle):
+        overlay = Image.open(BytesIO(await SVGTextTemplateRenderer(
+            self.top_layer_path).render(puzzle)), formats=("PNG",))
+        temp_path = Path(f"images/temp/ACR/{''.join([puzzle.center]+puzzle.outside)}")
+        temp_path.mkdir(parents=True, exist_ok=True)
+        result_path = f"{temp_path}.gif"
+        frames = list(Path(self.frames_path).glob("*.png"))
+        for i, frame_path in enumerate(frames, start=1):
+            frame = Image.open(frame_path)
+            if overlay.width != frame.width or overlay.height != frame.height:
+                # the basic assumption is that all the frames will be the same size
+                # so this will only be done once
+                overlay = overlay.resize((frame.width, frame.height))
+            Image.alpha_composite(frame, overlay).save(f"{temp_path}/{i}.png")
+            if i % 10 == 0:
+                print(f"\rComposited {i}/{len(frames)} frames", end="")
+        print()
+        ffmpeg_command = (
+            f"ffmpeg -framerate {self.base_framerate} " +
+            f"-i {temp_path}/%d.png -loop 0 -y " +
+            f"-filter_complex \"{self.ffmpeg_filter}\" {result_path}")
+        ffmpeg = await asyncio.create_subprocess_shell(ffmpeg_command)
+        await ffmpeg.wait()
+        for temp_frame in Path(temp_path).glob("*.png"):
+            temp_frame.unlink()
+        gifsicle = await asyncio.create_subprocess_shell(
+            f"gifsicle -b -O3 --lossy {result_path}"
+        )
+        await gifsicle.wait()
+        with open(result_path, "rb") as result_file:
             result = result_file.read()
             return result
 
@@ -387,10 +434,16 @@ PuzzleRenderer.available_renderers.append(
         "images/trainstationbase.png",
         "images/trainstationpalette.png",
         [(586, 277), (479, 277), (693, 277), (532, 138), (640, 415), (533, 415), (640, 138)],
-        "fonts/split-flap/resized/",
+        "images/animations/split-flap/",
         (40, 66), 5, 20
     )
 )
+
+PuzzleRenderer.available_renderers.append(
+    AnimationCompositorRenderer(
+        "images/animations/clock/", "images/clock_overlay.svg", 24,
+        "[0:v]setpts=(PTS-STARTPTS)+(trunc((N+5)/6)*(0.75/TB))," +
+        "split [a][b];[a] palettegen [p];[b][p] paletteuse=new=1"))
 
 
 async def test():
