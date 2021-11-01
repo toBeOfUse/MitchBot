@@ -107,9 +107,14 @@ def add_responses(bot: MitchClient):
     bot.register_responder(MessageResponder(r"\bwhat\b.*\bday\b|\bday of the week\b", day_of_week))
 
     async def nickname(message: discord.Message):
-        mess = "Hello, ✨" + get_random_nickname()+"✨"
-        await message.reply(mess)
-    bot.register_responder(MessageResponder("nickname", nickname, require_mention=True))
+        if "nicknames" in message.content.lower():
+            nicknames = [get_random_nickname() for _ in range(0, 5)]
+            mess = "Hello, " + ", ".join(nicknames[:-1])+", and/or "+nicknames[-1]
+            await message.reply(mess)
+        else:
+            mess = "Hello, ✨" + get_random_nickname()+"✨"
+            await message.reply(mess)
+    bot.register_responder(MessageResponder(r"nicknames?", nickname, require_mention=True))
 
     async def add_emoji(message: discord.Message):
         emoji_name_match = re.search("make (.*) emoji", message.content)
