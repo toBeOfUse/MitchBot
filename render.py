@@ -214,7 +214,7 @@ class BlenderRenderer(PuzzleRenderer):
             "-E", "CYCLES",
             "-o", str(output_path)+"#",
             "--python-text", "AddLetters",
-            "-F", "PNG ",
+            "-F", "PNG",
             "-f", "1",
             "--", letters,
             stdout=asyncio.subprocess.PIPE
@@ -419,7 +419,8 @@ for path in Path("images/").glob("puzzle_template_*.svg"):
 PuzzleRenderer.available_renderers.append(SVGImageTemplateRenderer(
     Path("images", "image_puzzle_template_1.svg"), Path("fonts", "pencil")))
 
-PuzzleRenderer.available_renderers.append(BlenderRenderer("images/blender_template_1.blend"))
+for path in Path("images/").glob("blender_template_*.blend"):
+	PuzzleRenderer.available_renderers.append(BlenderRenderer(path))
 
 PuzzleRenderer.available_renderers.append(
     GIFTemplateRenderer(

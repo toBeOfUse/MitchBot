@@ -264,7 +264,11 @@ async def test():
     print("words that the nyt doesn't want us to know about:")
     print(random.sample(puzzle.get_wiktionary_alternative_answers(), 5))
     puzzle.save()
-    rendered = await puzzle.render(PuzzleRenderer.available_renderers[-1])
+    rendered = await puzzle.render(
+		next(
+			x for x in PuzzleRenderer.available_renderers if "blender_template_2" in str(x)
+		)
+	)
     if rendered[0:4] == b"\x89PNG":
         print("displaying rendered png")
         Image.open(BytesIO(rendered)).show()
