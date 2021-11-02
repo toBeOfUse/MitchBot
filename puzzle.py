@@ -271,7 +271,10 @@ async def test():
 	)
     if rendered[0:4] == b"\x89PNG":
         print("displaying rendered png")
-        Image.open(BytesIO(rendered)).show()
+        if not Image.open(BytesIO(rendered)).show():
+			print("also saving it")
+			with open("images/testrenders/puzzletest.png", "wb+") as test_output:
+			test_output.write(rendered)
     else:
         with open("images/testrenders/puzzletest.gif", "wb+") as test_output:
             test_output.write(rendered)
