@@ -54,7 +54,7 @@ def schedule_tasks(client: MitchClient):
     puzzle_channel_id = 814334169299157001  # production
     # puzzle_channel_id = 888301952067325952  # test
     et = ZoneInfo("America/New_York")
-    fetch_new_puzzle_at = time(hour=6, minute=57, tzinfo=et)
+    fetch_new_puzzle_at = time(hour=6, minute=50, tzinfo=et)
     # fetch_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=10)).time()  # test
     post_new_puzzle_at = time(hour=7, tzinfo=ZoneInfo("America/New_York"))
     # post_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=3*60)).time()  # test
