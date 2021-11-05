@@ -25,6 +25,7 @@ try:
     from db import trieparse
 except ImportError:
     import trieparse
+from render import PuzzleRenderer
 
 words_db = sqlite3.connect("db/words.db")
 
@@ -365,6 +366,13 @@ poetry_source = RandomNoRepeats(poetry, "poetry")
 
 def get_random_poem() -> str:
     return poetry_source.get_item()
+
+
+renderer_source = RandomNoRepeats(PuzzleRenderer.available_renderers, "puzzle_renderers")
+
+
+def get_random_renderer() -> PuzzleRenderer:
+    return renderer_source.get_item()
 
 
 if __name__ == "__main__":

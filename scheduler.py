@@ -72,15 +72,14 @@ def schedule_tasks(client: MitchClient):
     post_new_puzzle_at = time(hour=7, tzinfo=ZoneInfo("America/New_York"))
     if client.user.display_name != "MitchBotTest":
         puzzle_channel_id = 814334169299157001  # production
-
+        quick_render = False
     else:
         puzzle_channel_id = 888301952067325952  # test
         if False:
             # in case we want to test puzzle posting directly
             fetch_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=10)).time()
             post_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=20)).time()
-            # ensure an old quick renderer is used
-            PuzzleRenderer.available_renderers = PuzzleRenderer.available_renderers[:1]
+            quick_render = True
 
     current_puzzle: Optional[Puzzle] = None
 
@@ -136,7 +135,9 @@ def schedule_tasks(client: MitchClient):
                     + f"the most common word was \"{previous_words[-1]}.\""
                 )
         # takes between 0 and 5 minutes, depending on the renderer
-        puzzle_image = await current_puzzle.render()
+        puzzle_image = await current_puzzle.render(
+            PuzzleRenderer.available_renderers[0] if quick_render else None
+        )
         puzzle_filename = "puzzle" + (".png" if puzzle_image[0:4] == b"\x89PNG" else ".gif")
         seconds_to_wait = get_seconds_before_next(post_new_puzzle_at)
         # sanity check to try to make sure that, if rendering the image took so
