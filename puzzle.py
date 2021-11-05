@@ -10,6 +10,7 @@ import traceback
 from datetime import datetime, timedelta
 import random
 from timeit import default_timer as timer
+from enum import Enum
 
 from tornado.httpclient import AsyncHTTPClient
 import discord
@@ -32,10 +33,10 @@ class Puzzle():
     interact with discord Message objects.
     """
 
-    # constants returned by `guess(word)`:
-    wrong_word = 1
-    good_word = 2
-    pangram = 3
+    class GuessJudgement(Enum):
+        wrong_word = 1
+        good_word = 2
+        pangram = 3
 
     def __init__(
             self,
@@ -72,19 +73,19 @@ class Puzzle():
     def guess(self, word: str) -> int:
         """
         determines whether a word counts for a point and/or is a pangram. uses
-        arbitrary constants defined on the class.
+        the GuessJudgement enum inner class.
         """
         w = word.lower()
         if self.is_pangram(w):
             self.gotten_words.add(w)
             self.save()
-            return self.pangram
+            return self.GuessJudgement.pangram
         elif self.does_word_count(w):
             self.gotten_words.add(w)
             self.save()
-            return self.good_word
+            return self.GuessJudgement.good_word
         else:
-            return self.wrong_word
+            return self.GuessJudgement.wrong_word
 
     def get_unguessed_words(self) -> list[str]:
         """returns the heretofore unguessed words in a list sorted from the least to
@@ -171,9 +172,9 @@ class Puzzle():
         pangram = False
         for word in words:
             guess_result = self.guess(word)
-            if guess_result == Puzzle.good_word:
+            if guess_result == Puzzle.GuessJudgement.good_word:
                 points += 1
-            elif guess_result == Puzzle.pangram:
+            elif guess_result == Puzzle.GuessJudgement.pangram:
                 points += 1
                 pangram = True
         if points > 0:
