@@ -14,6 +14,17 @@ from puzzle import Puzzle
 from db.queries import get_random_city_timezone, get_random_poem
 
 
+def andify(things: list):
+    """Helper function to put commas and spaces between the items in a list of things
+    with appropriate placement of the word "and." 
+    """
+    if len(things) < 1:
+        return ""
+    return (f'{", ".join(things[:-1])}' +
+            f'{", and " if len(things) > 2 else (" and " if len(things) > 1 else "")}' +
+            f'{things[-1]}')
+
+
 async def do_thing_after(seconds: float, thing: Callable):
     """Utility function to call a function or create a task for a coroutine in a
     certain number of seconds"""
@@ -132,23 +143,30 @@ def schedule_tasks(client: MitchClient):
     # kind of a cheat to have these next two things in scheduler.py. but.
     async def respond_to_guesses(message: discord.Message):
         if current_puzzle is not None:
+            already_found = len(current_puzzle.gotten_words)
             reactions = current_puzzle.respond_to_guesses(message)
             for reaction in reactions:
                 await message.add_reaction(reaction)
+            if len(current_puzzle.gotten_words) == already_found:
+                return
             try:
                 puzzle_channel = client.get_channel(puzzle_channel_id)
                 assert puzzle_channel is not None, "could not retrieve channel that puzzles are sent in"
                 status_message: discord.Message = (
                     await puzzle_channel.fetch_message(current_puzzle.message_id)
                 )
-                found_words = sorted(list(current_puzzle.gotten_words))
+                found_words = sorted(list(current_puzzle.gotten_words-current_puzzle.pangrams))
                 status_text = 'Words found by you guys so far: '
                 status_text += (
-                    f'||{", ".join(found_words[:-1])}' +
-                    f'{", and " if len(found_words) > 2 else (" and " if len(found_words) > 1 else "")}' +
-                    f'{found_words[-1]}||. '
+                    f'||{andify(found_words)}.|| '
                 )
-                status_text += f'({current_puzzle.percentage_complete}% complete'
+                found_pangrams = sorted(
+                    list(
+                        current_puzzle.gotten_words.intersection(
+                            current_puzzle.pangrams)))
+                if len(found_pangrams) > 0:
+                    status_text += f"Pangrams: ||{andify(found_pangrams)}.|| "
+                status_text += f' ({current_puzzle.percentage_complete}% complete'
                 if current_puzzle.percentage_complete == 100:
                     status_text += " 🎉)"
                 else:
