@@ -405,7 +405,7 @@ class AnimationCompositorRenderer(PuzzleRenderer):
         for temp_frame in Path(temp_path).glob("*.png"):
             temp_frame.unlink()
         gifsicle = await asyncio.create_subprocess_shell(
-            f"gifsicle -b -O3 --lossy {result_path}"
+            f"gifsicle -b -O1 --lossy {result_path}"
         )
         await gifsicle.wait()
         with open(result_path, "rb") as result_file:
@@ -420,7 +420,7 @@ PuzzleRenderer.available_renderers.append(SVGImageTemplateRenderer(
     Path("images", "image_puzzle_template_1.svg"), Path("fonts", "pencil")))
 
 for path in Path("images/").glob("blender_template_*.blend"):
-	PuzzleRenderer.available_renderers.append(BlenderRenderer(path))
+    PuzzleRenderer.available_renderers.append(BlenderRenderer(path))
 
 PuzzleRenderer.available_renderers.append(
     GIFTemplateRenderer(

@@ -1,15 +1,70 @@
+from __future__ import annotations
 import asyncio
 import datetime
+import inspect
 from io import BytesIO
 import random
 import re
 
 import discord
 from PIL import Image
-from discord.message import Message
 
-from MitchBot import MitchClient, MessageResponder
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from MitchBot import MitchClient
 from db.queries import get_random_nickname
+
+
+class MessageResponder():
+    '''
+    Stores a condition and a function to call if asked to react to a message that
+    meets that condition.
+    '''
+
+    def __init__(self, condition, responder, require_mention=False):
+        '''
+        Args:
+            condition: either a string or list of strings that can be used as a
+            regular expression to search the message contents case-insensitively
+            or a function that returns true or false depending on whether the
+            MessageResponder should respond.
+            responder: a function that is called with the message that we are
+            potentially going to respond to. this can be a normal function that
+            potentially returns a future or an async function.
+        '''
+        self.condition = condition
+        self.responder = responder
+        self.require_mention = require_mention
+
+    def react_to(self, message: discord.Message):
+        '''
+        Reacts to messages by executing a function if the certain condition is
+        fulfilled. Returns True if it called the function.
+        '''
+        if message.author.bot:
+            return False
+        match = False
+        if self.require_mention:
+            if (not message.guild.me.mentioned_in(message)) or message.mention_everyone:
+                return False
+        if isinstance(self.condition, str):
+            if re.search(self.condition, message.content, re.IGNORECASE):
+                match = True
+        elif isinstance(self.condition, list):
+            for regex in self.condition:
+                if re.search(regex, message.content, re.IGNORECASE):
+                    match = True
+                    break
+        elif inspect.isfunction(self.condition) and self.condition(message):
+            match = True
+        if match:
+            if inspect.iscoroutinefunction(self.responder):
+                asyncio.create_task(self.responder(message))
+            else:
+                potential_future = self.responder(message)
+                if potential_future is not None:
+                    asyncio.create_task(potential_future)
+        return match
 
 
 def add_responses(bot: MitchClient):

@@ -1,17 +1,22 @@
+from __future__ import annotations
 import asyncio
 from io import BytesIO
 from datetime import time, datetime, timedelta, timezone
 import inspect
 import random
-from typing import Callable, Optional
 import traceback
+from typing import Callable, Optional, TYPE_CHECKING
+if TYPE_CHECKING:
+    from MitchBot import MitchClient
 
 import discord
 from zoneinfo import ZoneInfo
 
-from MitchBot import MessageResponder, MitchClient
+from responders import MessageResponder
+
 from puzzle import Puzzle
 from db.queries import get_random_city_timezone, get_random_poem
+from render import PuzzleRenderer
 
 
 def andify(things: list):
@@ -62,13 +67,20 @@ async def repeatedly_schedule_task_for(time_of_day: time, task: Callable) -> Non
 
 def schedule_tasks(client: MitchClient):
     # puzzle scheduling:
-    puzzle_channel_id = 814334169299157001  # production
-    # puzzle_channel_id = 888301952067325952  # test
     et = ZoneInfo("America/New_York")
     fetch_new_puzzle_at = time(hour=6, minute=50, tzinfo=et)
-    # fetch_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=10)).time()  # test
     post_new_puzzle_at = time(hour=7, tzinfo=ZoneInfo("America/New_York"))
-    # post_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=3*60)).time()  # test
+    if client.user.display_name != "MitchBotTest":
+        puzzle_channel_id = 814334169299157001  # production
+        quick_render = False
+    else:
+        puzzle_channel_id = 888301952067325952  # test
+        if False:
+            # in case we want to test puzzle posting directly
+            fetch_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=10)).time()
+            post_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=20)).time()
+            quick_render = True
+
     current_puzzle: Optional[Puzzle] = None
 
     async def maintain_last_posted_puzzle():
@@ -80,7 +92,6 @@ def schedule_tasks(client: MitchClient):
             try:
                 if current_puzzle.message_id == -1:
                     raise ValueError("Puzzle from DB did not have message ID")
-                await client.wait_until_ready()
                 puzzle_channel = client.get_channel(puzzle_channel_id)
                 await puzzle_channel.fetch_message(current_puzzle.message_id)
                 print("the previous puzzle status post is accessible")
@@ -123,7 +134,10 @@ def schedule_tasks(client: MitchClient):
                     + f"puzzle was \"{previous_words[0]};\" "
                     + f"the most common word was \"{previous_words[-1]}.\""
                 )
-        puzzle_image = await current_puzzle.render()  # takes between 0.5 and 160 seconds, roughly
+        # takes between 0 and 5 minutes, depending on the renderer
+        puzzle_image = await current_puzzle.render(
+            PuzzleRenderer.available_renderers[0] if quick_render else None
+        )
         puzzle_filename = "puzzle" + (".png" if puzzle_image[0:4] == b"\x89PNG" else ".gif")
         seconds_to_wait = get_seconds_before_next(post_new_puzzle_at)
         # sanity check to try to make sure that, if rendering the image took so
@@ -181,7 +195,7 @@ def schedule_tasks(client: MitchClient):
         lambda m: m.channel.id == puzzle_channel_id, respond_to_guesses))
 
     @client.event
-    async def _(before: discord.Message, after: discord.Message):
+    async def on_message_edit(before: discord.Message, after: discord.Message):
         if after.channel.id == puzzle_channel_id:
             if before.content != after.content:
                 # remove old reactions

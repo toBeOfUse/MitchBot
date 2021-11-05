@@ -1,10 +1,11 @@
+from __future__ import annotations
 import asyncio
 from io import BytesIO
 import json
 from os import PathLike
 import re
 import sqlite3
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 import traceback
 from datetime import datetime, timedelta
 import random
@@ -14,8 +15,9 @@ from tornado.httpclient import AsyncHTTPClient
 import discord
 from PIL import Image
 
-from db.queries import get_word_frequency, get_wiktionary_trie, RandomNoRepeats
-from render import PuzzleRenderer
+from db.queries import get_word_frequency, get_wiktionary_trie, get_random_renderer
+if TYPE_CHECKING or __name__ == "__main__":
+    from render import PuzzleRenderer
 
 
 class Puzzle():
@@ -129,8 +131,7 @@ class Puzzle():
         will be provided for you from the PuzzleRenderer.available_renderers
         variable."""
         if renderer is None:
-            source = RandomNoRepeats(PuzzleRenderer.available_renderers, "puzzle_renderers")
-            renderer = source.get_item()
+            renderer = get_random_renderer()
         return await renderer.render(self)
 
     def associate_with_message(self, message: discord.Message):
@@ -264,11 +265,7 @@ async def test():
     print("words that the nyt doesn't want us to know about:")
     print(random.sample(puzzle.get_wiktionary_alternative_answers(), 5))
     puzzle.save()
-    rendered = await puzzle.render(
-		next(
-			x for x in PuzzleRenderer.available_renderers if "blender_template_2" in str(x)
-		)
-	)
+    rendered = await puzzle.render()
     if rendered[0:4] == b"\x89PNG":
         print("displaying rendered png")
         if not Image.open(BytesIO(rendered)).show():
