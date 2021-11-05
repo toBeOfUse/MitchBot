@@ -194,7 +194,7 @@ def schedule_tasks(client: MitchClient):
         lambda m: m.channel.id == puzzle_channel_id, respond_to_guesses))
 
     @client.event
-    async def _(before: discord.Message, after: discord.Message):
+    async def on_message_edit(before: discord.Message, after: discord.Message):
         if after.channel.id == puzzle_channel_id:
             if before.content != after.content:
                 # remove old reactions
