@@ -10,6 +10,9 @@ images/testrenders/*
 images/temp/*
 !images/temp/.gitkeep
 *.blend1
+db/random.db
+images/puzzlestest.png
+db/trieparse.c
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -149,5 +152,3 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
-db/random.db
-images/puzzlestest.png
