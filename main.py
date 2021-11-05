@@ -12,8 +12,6 @@ import tornado.websocket
 
 # project files
 import MitchBot
-from responders import add_responses
-from scheduler import schedule_tasks
 
 discord_client = None  # instantiated in main() so as to use the event loop created when main() is run
 http_client = tornado.httpclient.AsyncHTTPClient()
@@ -140,12 +138,9 @@ server = tornado.web.Application([
 async def main():
     global discord_client
     discord_client = MitchBot.MitchClient()
-    add_responses(discord_client)
-    schedule_tasks(discord_client)
-    server.listen(9876)
-    token_file = open('login_token.txt')
-    await discord_client.login(token_file.read())
-    token_file.close()
+    with open('login_token.txt') as token_file:
+        await discord_client.login(token_file.read())
+    # server.listen(9876)
     await discord_client.connect()
 
 if __name__ == "__main__":  # if this file is being run directly, not imported or being tested

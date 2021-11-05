@@ -1,4 +1,5 @@
 # python libraries
+from __future__ import annotations
 import asyncio
 import inspect
 import math
@@ -7,10 +8,17 @@ import subprocess
 import time
 from io import BytesIO
 import random
+from typing import TYPE_CHECKING
 
 # external package dependencies
 import discord
 from PIL import Image
+
+# project files
+from responders import add_responses
+from scheduler import schedule_tasks
+if TYPE_CHECKING:
+    from responders import MessageResponder
 
 
 class ReactiveDict(dict):
@@ -36,58 +44,6 @@ class ReactiveDict(dict):
              else x(key, value) for x in self.listeners]
 
 
-class MessageResponder():
-    '''
-    Stores a condition and a function to call if asked to react to a message that
-    meets that condition.
-    '''
-
-    def __init__(self, condition, responder, require_mention=False):
-        '''
-        Args:
-            condition: either a string or list of strings that can be used as a
-            regular expression to search the message contents case-insensitively
-            or a function that returns true or false depending on whether the
-            MessageResponder should respond.
-            responder: a function that is called with the message that we are
-            potentially going to respond to. this can be a normal function that
-            potentially returns a future or an async function.
-        '''
-        self.condition = condition
-        self.responder = responder
-        self.require_mention = require_mention
-
-    def react_to(self, message: discord.Message):
-        '''
-        Reacts to messages by executing a function if the certain condition is
-        fulfilled. Returns True if it called the function.
-        '''
-        if message.author.bot:
-            return False
-        match = False
-        if self.require_mention:
-            if (not message.guild.me.mentioned_in(message)) or message.mention_everyone:
-                return False
-        if isinstance(self.condition, str):
-            if re.search(self.condition, message.content, re.IGNORECASE):
-                match = True
-        elif isinstance(self.condition, list):
-            for regex in self.condition:
-                if re.search(regex, message.content, re.IGNORECASE):
-                    match = True
-                    break
-        elif inspect.isfunction(self.condition) and self.condition(message):
-            match = True
-        if match:
-            if inspect.iscoroutinefunction(self.responder):
-                asyncio.create_task(self.responder(message))
-            else:
-                potential_future = self.responder(message)
-                if potential_future is not None:
-                    asyncio.create_task(potential_future)
-        return match
-
-
 class MitchClient(discord.Client):
     def __init__(self):
         super().__init__()
@@ -101,6 +57,7 @@ class MitchClient(discord.Client):
         self.public_state['currently_playing'] = ""
         # self.public_state['current_voice'] = self.voice.current_voice()
         self.responses: list[MessageResponder] = []
+        self.initialized = False
 
     @classmethod
     async def get_avatar_small(cls, user, final_size):
@@ -113,6 +70,10 @@ class MitchClient(discord.Client):
         print(f'Logged on as {self.user}!')
         for guild in self.guilds:
             await guild.me.edit(nick="MitchBot")
+        if not self.initialized:
+            add_responses(self)
+            schedule_tasks(self)
+            self.initialized = True
         # for g in self.guilds:
         #     for vc in g.voice_channels:
         #         if self.user in vc.members:
