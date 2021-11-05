@@ -138,7 +138,7 @@ def schedule_tasks(client: MitchClient):
         puzzle_image = await current_puzzle.render(
             PuzzleRenderer.available_renderers[0] if quick_render else None
         )
-        puzzle_filename = "puzzle" + (".png" if puzzle_image[0:4] == b"\x89PNG" else ".gif")
+        puzzle_filename = "puzzle."+current_puzzle.image_file_type
         seconds_to_wait = get_seconds_before_next(post_new_puzzle_at)
         # sanity check to try to make sure that, if rendering the image took so
         # long that it's already a little bit after post_new_puzzle_at, we don't

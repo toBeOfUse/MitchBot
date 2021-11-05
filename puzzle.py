@@ -54,8 +54,9 @@ class Puzzle():
         for word in self.pangrams:
             self.answers.add(word)  # shouldn't be necessary but just in case
         self.gotten_words = set(w.lower() for w in gotten_words)
+        self.image: Optional[bytes] = None
         self.message_id: int = -1
-        self.db_path = None
+        self.db_path: Optional[str] = None
 
     def __eq__(self, other):
         return self.center+self.outside == other.center+other.outside
@@ -127,13 +128,26 @@ class Puzzle():
                 result.append(word)
         return result
 
-    async def render(self, renderer: PuzzleRenderer = None):
-        """If you do not pass in an instance of a subclass of PuzzleRenderer, one
-        will be provided for you from the PuzzleRenderer.available_renderers
-        variable."""
+    async def render(self, renderer: PuzzleRenderer = None) -> bytes:
+        """Renders the puzzle to an image; returns the image file as bytes and caches
+        it in the image instance variable. If you do not pass in an instance of a
+        subclass of PuzzleRenderer, one will be provided for you via
+        get_random_renderer from queries.py."""
         if renderer is None:
             renderer = get_random_renderer()
-        return await renderer.render(self)
+        self.image = await renderer.render(self)
+        return self.image
+
+    @property
+    def image_file_type(self) -> Optional[str]:
+        if self.image is None:
+            return None
+        elif self.image[0:4] == b"\x89PNG":
+            return "png"
+        elif self.image[0:3] == b"GIF":
+            return "gif"
+        elif self.image[0:2] == b"\xff\xd8":
+            return "jpg"
 
     def associate_with_message(self, message: discord.Message):
         """Used to give a puzzle a Discord message ID that can be saved in the
@@ -194,24 +208,42 @@ class Puzzle():
         self.db_path = db_path
         self.save()
 
-    def save(self):
-        """Serializes the puzzle and saves it in a SQLite database."""
-        if self.db_path is None:
-            return
-        db = sqlite3.connect(self.db_path)
+    @classmethod
+    def get_connection(self, db_path: PathLike) -> Optional[sqlite3.Connection]:
+        """Connects to the database, ensures the table exists with the correct
+        schema, and returns the connection."""
+        latest_version = 1
+        if db_path is None:
+            return None
+        db = sqlite3.connect(db_path)
         cur = db.cursor()
         cur.execute("""create table if not exists puzzles
             (timestamp integer primary key, message_id integer, center text, outside text,
             pangrams text, answers text, gotten_words text);""")
         cur.execute("""create index if not exists chrono on puzzles (timestamp desc);""")
+
+        current_version = cur.execute("pragma user_version").fetchone()[0]
+        if current_version == 0:
+            cur.execute("alter table puzzles add column image bytes")
+            cur.execute(f"pragma user_version={latest_version}")
+            db.commit()
+        return db
+
+    def save(self):
+        """Serializes the puzzle and saves it in a SQLite database."""
+        db = self.get_connection(self.db_path)
+        if db is None:
+            return
+        cur = db.cursor()
         cur.execute(
             """insert or replace into puzzles
-            (timestamp, message_id, center, outside, pangrams, answers, gotten_words)
-            values (?, ?, ?, ?, ?, ?, ?)""",
+            (timestamp, message_id, center, outside, pangrams, answers, gotten_words, image)
+            values (?, ?, ?, ?, ?, ?, ?, ?)""",
             (self.timestamp, self.message_id, self.center, json.dumps(list(self.outside)),
              json.dumps(list(self.pangrams)),
              json.dumps(list(self.answers)),
-             json.dumps(list(self.gotten_words))))
+             json.dumps(list(self.gotten_words)),
+             self.image))
         db.commit()
         db.close()
 
@@ -220,19 +252,23 @@ class Puzzle():
         """Retrieves the most recently saved puzzle from the SQLite database. Note
         that the returned object is separate from the database record until/unless
         persist() is called to assign it to the same database again."""
-        db = sqlite3.connect(db_path)
+        db = cls.get_connection(db_path)
         cur = db.cursor()
         try:
-            latest = cur.execute("""select 
-                timestamp, message_id, center, outside, pangrams, answers, gotten_words
+            latest = cur.execute("""select
+                timestamp, message_id, image, center, outside, pangrams, answers, gotten_words
                 from puzzles order by timestamp desc limit 1""").fetchone()
             if latest is None:
                 db.close()
                 return None
             else:
                 db.close()
-                loaded_puzzle = cls(latest[0], latest[2], *[json.loads(x) for x in latest[3:]])
+                loaded_puzzle = cls(
+                    latest[0],
+                    latest[3],
+                    *[json.loads(x) for x in latest[4:]])
                 loaded_puzzle.message_id = latest[1]
+                loaded_puzzle.image = latest[2]
                 return loaded_puzzle
         except:
             print("couldn't load latest puzzle from database")
@@ -267,13 +303,13 @@ async def test():
     print(random.sample(puzzle.get_wiktionary_alternative_answers(), 5))
     puzzle.save()
     rendered = await puzzle.render()
-    if rendered[0:4] == b"\x89PNG":
+    if puzzle.image_file_type == "png":
         print("displaying rendered png")
         if not Image.open(BytesIO(rendered)).show():
             print("also saving it")
             with open("images/testrenders/puzzletest.png", "wb+") as test_output:
                 test_output.write(rendered)
-    else:
+    elif puzzle.image_file_type == "gif":
         with open("images/testrenders/puzzletest.gif", "wb+") as test_output:
             test_output.write(rendered)
             print("wrote puzzletest.gif to images folder")

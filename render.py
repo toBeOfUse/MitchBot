@@ -458,8 +458,9 @@ async def test():
             if sys.argv[1].lower() not in str(r).lower():
                 continue
         start = default_timer()
-        render = await r.render(Puzzle(-1, "A", letters, [], []))
-        type = ".png" if render[0:4] == b"\x89PNG" else ".gif"
+        test_puzzle = Puzzle(-1, "A", letters, [], [])
+        render = await r.render(test_puzzle)
+        type = "."+test_puzzle.image_file_type
         renderer_name_slug = str(r).replace(" ", "_").replace("\\", "-").replace("/", "-")
         with open(f'images/testrenders/{renderer_name_slug}{type}', "wb+") as output:
             output.write(render)
