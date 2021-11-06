@@ -460,9 +460,9 @@ async def test():
         start = default_timer()
         test_puzzle = Puzzle(-1, "A", letters, [], [])
         render = await r.render(test_puzzle)
-        type = "."+test_puzzle.image_file_type
+        type = test_puzzle.image_file_type
         renderer_name_slug = str(r).replace(" ", "_").replace("\\", "-").replace("/", "-")
-        with open(f'images/testrenders/{renderer_name_slug}{type}', "wb+") as output:
+        with open(f'images/testrenders/{renderer_name_slug}.{type}', "wb+") as output:
             output.write(render)
         print(r, "took", round((default_timer()-start)*1000), "ms")
 

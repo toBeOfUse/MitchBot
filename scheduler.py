@@ -121,11 +121,9 @@ def schedule_tasks(client: MitchClient):
         alt_words = current_puzzle.get_wiktionary_alternative_answers()
         if len(alt_words) > 1:
             alt_words_sample = random.sample(alt_words, min(len(alt_words), 5))
-            alt_words_string = (", ".join(alt_words_sample[:-1]) +
-                                ", and "+alt_words_sample[-1]+". ")
             message_text += (
                 " Words from Wiktionary that should count today that " +
-                "the NYT fails to acknowledge include: " + alt_words_string)
+                f"the NYT fails to acknowledge include: {andify(alt_words_sample)}.")
         if previous_puzzle is not None:
             previous_words = previous_puzzle.get_unguessed_words()
             if len(previous_words) > 1:

@@ -163,7 +163,10 @@ def add_responses(bot: MitchClient):
 
     async def nickname(message: discord.Message):
         if "nicknames" in message.content.lower():
-            nicknames = [get_random_nickname() for _ in range(0, 5*message.content.lower().count("nicknames"))]
+            nicknames = [
+                get_random_nickname() for _ in range(
+                    0, 5 * message.content.lower().count("nicknames"))
+            ]
             mess = "Hello, " + ", ".join(nicknames[:-1])+", and/or "+nicknames[-1]
             await message.reply(mess)
         else:
