@@ -6,6 +6,8 @@ import inspect
 import random
 import traceback
 from typing import Callable, Optional, TYPE_CHECKING
+
+from letterboxed import LetterBoxed
 if TYPE_CHECKING:
     from MitchBot import MitchClient
 
@@ -231,6 +233,37 @@ def schedule_tasks(client: MitchClient):
     # poem_time = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)
     #              ).time().replace(tzinfo=timezone.utc)  # test
     asyncio.create_task(repeatedly_schedule_task_for(poem_time, send_poem))
+
+    # letterboxed scheduling:
+    post_new_letterboxed_at = time(hour=7, tzinfo=ZoneInfo("America/New_York"))
+    if client.user.display_name != "MitchBotTest":
+        letterboxed_thread_id = 897476378709065779  # production
+        letterboxed_guild_id = 678337806510063626
+    else:
+        letterboxed_thread_id = 907998436853444658  # test
+        letterboxed_guild_id = 708955889276551198
+        if True:
+            # in case we want to test puzzle posting directly
+            post_new_letterboxed_at = (datetime.now(tz=et)+timedelta(seconds=5)).time()
+
+    async def post_letterboxed():
+        new_boxed = await LetterBoxed.fetch_from_nyt()
+        new_boxed_image = await new_boxed.render()
+        target_guild = await client.fetch_guild(letterboxed_guild_id)
+        print("guild:")
+        print(target_guild.name)
+        print("threads:")
+        available_threads = await target_guild.active_threads()
+        for thread in available_threads:
+            print(thread)
+        target_thread = next(x for x in available_threads if x.id == letterboxed_thread_id)
+        await target_thread.join()
+        await target_thread.send(
+            content="Good morning",
+            file=discord.File(BytesIO(new_boxed_image), "letterboxed.png")
+        )
+
+    asyncio.create_task(repeatedly_schedule_task_for(post_new_letterboxed_at, post_letterboxed))
 
 
 async def test():
