@@ -6,12 +6,12 @@ name = "pypi"
 [packages]
 tornado = "*"
 pillow = "*"
-discord = "*"
 comtypes = "*"
 cairosvg = "*"
 cython = "*"
 tzdata = "*"
 timezonefinder = {extras = ["numba"], version = "*"}
+py-cord = {editable = true, path = "./pycord"}
 
 [dev-packages]
 autopep8 = "*"
