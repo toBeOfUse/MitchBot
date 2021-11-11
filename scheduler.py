@@ -128,7 +128,7 @@ def schedule_tasks(client: MitchClient):
             previous_words = previous_puzzle.get_unguessed_words()
             if len(previous_words) > 1:
                 message_text += (
-                    "The least common word that no one got for yesterday's "
+                    " The least common word that no one got for yesterday's "
                     + f"puzzle was \"{previous_words[0]};\" "
                     + f"the most common word was \"{previous_words[-1]}.\""
                 )
@@ -219,10 +219,11 @@ def schedule_tasks(client: MitchClient):
         a_state = random.choice(
             ["retrograde", "intrograde", "prograde", "astrograde", "interrograde", "terragrade",
              "peltagrade", "fluxigrade", "axigrade", "centigrade", "tardigrade", "upgrade",
-             "degrade", "orthograde", "fermigrade"])
+             "rancigrade", "demigrade", "distastigrade", "deltagrade", "orthograde", "fermigrade",
+             "esograde", "altigrade", "bizarrograde", "essentiagrade"])
         prelude = ("Good evening. " +
                    f"It's {int(a_time.strftime('%I'))}:{a_time.strftime('%M %p')} " +
-                   f"in {a_city}. {a_body} is in {a_state}. Tonight's prediction is:")
+                   f"in {a_city}. {a_body} is in {a_state}. Tonight's top story is:")
         await client.get_channel(poetry_channel_id).send(prelude)
         poem = "\n".join("> "+x for x in get_random_poem().split("\n"))
         await client.get_channel(poetry_channel_id).send(poem)
