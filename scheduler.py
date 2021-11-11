@@ -259,7 +259,7 @@ def schedule_tasks(client: MitchClient):
         target_thread = next(x for x in available_threads if x.id == letterboxed_thread_id)
         await target_thread.join()
         await target_thread.send(
-            content="Good morning",
+            content="Good morning~",
             file=discord.File(BytesIO(new_boxed_image), "letterboxed.png")
         )
 
