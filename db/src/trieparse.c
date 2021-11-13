@@ -54,6 +54,28 @@ const char* search_words(
     return results;
 }
 
+int is_word_in_it(const char* trie_buffer, const char* word, int word_length)
+{
+    const struct TrieHeader* current = (struct TrieHeader*)(trie_buffer);
+    for (int i = 0; i < word_length; i++) {
+        const char current_char = word[i];
+        int found_current_char = 0;
+        struct TrieLink* first_link = (struct TrieLink*)(current + 1);
+        for (int i = 0; i < current->num_links; i++) {
+            struct TrieLink* link = first_link + i;
+            if (link->letter == current_char) {
+                current = (struct TrieHeader*)(trie_buffer + link->byte_offset);
+                found_current_char = 1;
+                break;
+            }
+        }
+        if (!found_current_char) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 void main()
 {
     // test
@@ -76,6 +98,7 @@ void main()
     for (int i = 0; i < results_length; i++) {
         putchar(results[i]);
     }
+    printf("'dog' in trie: %d", is_word_in_it(nodes, "dog", 3));
     free(nodes);
     free(results);
 }

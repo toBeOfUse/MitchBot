@@ -25,6 +25,7 @@ try:
     from db import trieparse
 except ImportError:
     import trieparse
+# to get this to work it helps to run this as a module with python -m db.queries
 from render import PuzzleRenderer
 
 words_db = sqlite3.connect("db/words.db")
@@ -168,7 +169,17 @@ class Trie():
         if self.mode == "objects":
             self.root.add_string(new_string)
         else:
-            raise NotImplementedError("add_string not supported for Tries based on bytes")
+            raise NotImplementedError(
+                "add_string not yet supported for Tries based on bytes (sorry)"
+            )
+
+    def is_string_there(self, string: str):
+        if self.mode == "bytes":
+            return trieparse.is_word_there(self.buffer, string.lower().encode("ascii"))
+        else:
+            raise NotImplementedError(
+                "is_string_there not yet supported for Tries based on Python objects (sorry)"
+            )
 
     def to_bytes(self) -> bytes:
         if self.mode == "bytes":
@@ -382,6 +393,8 @@ if __name__ == "__main__":
     start = timer()
     print(test_trie.search_words_by_letters(list("abcdefg")))
     print("took", round((timer()-start)*1000, 2), "ms")
+    print("'dog' is in the trie:", test_trie.is_string_there("dog"))
+    print("'zdjkkjfs' is in the trie:", test_trie.is_string_there("zdjkkjfs"))
     print()
     print("random city and timezone:", get_random_city_timezone())
     print()
