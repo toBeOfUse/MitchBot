@@ -12,6 +12,7 @@ cython = "*"
 tzdata = "*"
 timezonefinder = {extras = ["numba"], version = "*"}
 py-cord = {git = "https://github.com/toBeOfUse/pycord.git"}
+sortedcontainers = "*"
 
 [dev-packages]
 autopep8 = "*"
