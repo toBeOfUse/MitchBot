@@ -16,6 +16,7 @@ import traceback
 from timeit import default_timer as timer
 import random
 from typing import Sequence
+from math import inf
 
 from timezonefinder import TimezoneFinder
 
@@ -31,16 +32,17 @@ from render import PuzzleRenderer
 words_db = sqlite3.connect("db/words.db")
 
 
-def get_word_frequency(word: str) -> int:
+def get_word_rank(word: str) -> int:
     """
-    Exposes the word frequency data stored in words.db to easy python access.
+    Exposes the word frequency data stored in words.db to easy python access. The
+    lower the rank, the more common the word.
     """
     cur = words_db.cursor()
-    frequency = cur.execute(
-        "select frequency from words where word=?",
+    rank = cur.execute(
+        "select rank from words where word=?",
         (word,)
     ).fetchone()
-    return 0 if frequency is None else frequency[0]
+    return inf if rank is None else rank[0]
 
 
 cities_db = sqlite3.connect("db/cities.db")
@@ -402,7 +404,7 @@ if __name__ == "__main__":
     print(
         sorted(
             ["especially", "when", "dogs", "should", "vote"],
-            key=get_word_frequency, reverse=True))
+            key=get_word_rank))
     print()
     print("random nickname:", get_random_nickname())
     print()

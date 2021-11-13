@@ -16,7 +16,7 @@ from tornado.httpclient import AsyncHTTPClient
 import discord
 from PIL import Image
 
-from db.queries import get_word_frequency, get_wiktionary_trie, get_random_renderer
+from db.queries import get_wiktionary_trie, get_random_renderer, get_word_rank
 if TYPE_CHECKING or __name__ == "__main__":
     from render import PuzzleRenderer
 
@@ -92,7 +92,7 @@ class Puzzle():
         """returns the heretofore unguessed words in a list sorted from the least to
         the most common words."""
         unguessed = list(self.answers - self.gotten_words)
-        unguessed.sort(key=lambda w: get_word_frequency(w))
+        unguessed.sort(key=lambda w: get_word_rank(w), reverse=True)
         return unguessed
 
     def get_wiktionary_alternative_answers(self) -> list[str]:
@@ -278,7 +278,7 @@ class Puzzle():
 
 
 async def test():
-    print("frequency of 'puzzle'", get_word_frequency("puzzle"))
+    print("rank of 'puzzle'", get_word_rank("puzzle"))
     saved_puzzle = Puzzle.retrieve_last_saved("db/testpuzzles.db")
     if saved_puzzle is None:
         print("fetching puzzle from nyt")
