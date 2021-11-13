@@ -40,7 +40,7 @@ def get_word_rank(word: str) -> int:
     cur = words_db.cursor()
     rank = cur.execute(
         "select rank from words where word=?",
-        (word,)
+        (word.lower(),)
     ).fetchone()
     return inf if rank is None else rank[0]
 

@@ -260,7 +260,8 @@ def schedule_tasks(client: MitchClient):
         await target_thread.join()
         await target_thread.send(
             content=(
-                "Good morning~ " +
+                "Good morning ~ " +
+                f"Today's puzzle is a par {new_boxed.par}. " +
                 new_boxed.get_solutions_quantity_statement() +
                 f" {new_boxed.percentage_of_words_in_wiktionary()}% " +
                 "of accepted answers have an English-language entry in Wiktionary."),
