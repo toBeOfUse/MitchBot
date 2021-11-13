@@ -235,7 +235,7 @@ def schedule_tasks(client: MitchClient):
     asyncio.create_task(repeatedly_schedule_task_for(poem_time, send_poem))
 
     # letterboxed scheduling:
-    post_new_letterboxed_at = time(hour=7, tzinfo=ZoneInfo("America/New_York"))
+    post_new_letterboxed_at = time(hour=12, tzinfo=ZoneInfo("America/New_York"))
     if client.user.display_name != "MitchBotTest":
         letterboxed_thread_id = 897476378709065779  # production
         letterboxed_guild_id = 678337806510063626
@@ -259,7 +259,7 @@ def schedule_tasks(client: MitchClient):
         target_thread = next(x for x in available_threads if x.id == letterboxed_thread_id)
         await target_thread.join()
         await target_thread.send(
-            content="Good morning~",
+            content="Good morning~ "+new_boxed.get_solutions_quantity_statement(),
             file=discord.File(BytesIO(new_boxed_image), "letterboxed.png")
         )
 
