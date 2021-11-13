@@ -3,7 +3,7 @@ import json
 import re
 from io import BytesIO
 from timeit import default_timer
-
+from db.queries import get_wiktionary_trie
 from cairosvg import svg2png
 from tornado.httpclient import AsyncHTTPClient
 from PIL import Image
@@ -156,26 +156,45 @@ class LetterBoxed:
         def sol(count: int):
             return "solutions" if count != 1 else "solution"
 
+        def num(number: int):
+            numbers = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five",
+                       6: "six", 7: "seven", 8: "eight", 9: "nine", 10: "ten"}
+            if number in numbers:
+                return numbers[number]
+            else:
+                return number
+
         inventory = list(
             x for x in self.get_solutions_by_length(max_length).items() if len(x[1])
         )
         if len(inventory) == 0:
-            return f"There are no solutions shorter than {max_length} words today."
+            return f"There are no solutions shorter than {num(max_length)} words today."
         elif len(inventory) == 1:
             count = len(inventory[0][1])
-            return f"There {verb(count)} {count} {inventory[0][0]}-word {sol(count)} today."
+            return (f"There {verb(count)} {num(count)} " +
+                    f"{num(inventory[0][0])}-word {sol(count)} today.")
         else:
             first_count = len(inventory[0][1])
-            result = f"There {verb(first_count)} {first_count}"
-            result += f" {inventory[0][0]}-word {sol(first_count)}"
+            result = f"There {verb(first_count)} {num(first_count)}"
+            result += f" {num(inventory[0][0])}-word {sol(first_count)}"
             for item in inventory[1:-1]:
                 count = len(item[1])
-                result += f", {count} {item[0]}-word {sol(count)}"
+                result += f", {num(count)} {num(item[0])}-word {sol(count)}"
             if len(inventory) > 2:
                 result += ","
             last_count = len(inventory[-1][1])
-            result += f" and {last_count} {inventory[-1][0]}-word {sol(last_count)} today."
+            result += f" and {num(last_count)} {num(inventory[-1][0])}-word {sol(last_count)} today."
             return result
+
+    def percentage_of_words_in_wiktionary(self):
+        wikt = get_wiktionary_trie()
+        return round(
+            (
+                sum(
+                    (1 if wikt.is_string_there(x.word) else 0) for x in self.valid_words
+                ) /
+                len(self.valid_words))
+            * 100, 2)
 
     def __repr__(self):
         return f"<LetterBoxed sides={self.sides} par={self.par} len(valid_words)={len(self.valid_words)}>"
@@ -184,10 +203,11 @@ class LetterBoxed:
 async def test():
     puzzle = await LetterBoxed.fetch_from_nyt()
     print(puzzle)
-    print(puzzle.get_solutions_by_length(3))
+    print(puzzle.get_solutions_by_length(2))
     print(puzzle.get_solutions_quantity_statement(1))
     print(puzzle.get_solutions_quantity_statement(2))
     print(puzzle.get_solutions_quantity_statement(3))
+    print("percentage of today's words in wiktionary:", puzzle.percentage_of_words_in_wiktionary())
     # print(puzzle.get_solutions_quantity_statement(4))  # slow!
 
 
