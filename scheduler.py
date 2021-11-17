@@ -6,6 +6,7 @@ import inspect
 import random
 import traceback
 from typing import Callable, Optional, TYPE_CHECKING
+import re
 
 from letterboxed import LetterBoxed
 if TYPE_CHECKING:
@@ -246,8 +247,12 @@ def schedule_tasks(client: MitchClient):
             # in case we want to test puzzle posting directly
             post_new_letterboxed_at = (datetime.now(tz=et)+timedelta(seconds=5)).time()
 
+    current_letterboxed = None
+
     async def post_letterboxed():
+        nonlocal current_letterboxed
         new_boxed = await LetterBoxed.fetch_from_nyt()
+        current_letterboxed = new_boxed
         new_boxed_image = await new_boxed.render()
         target_guild = await client.fetch_guild(letterboxed_guild_id)
         print("guild:")
@@ -269,6 +274,18 @@ def schedule_tasks(client: MitchClient):
         )
 
     asyncio.create_task(repeatedly_schedule_task_for(post_new_letterboxed_at, post_letterboxed))
+
+    async def letterboxed_react(message: discord.Message):
+        nonlocal current_letterboxed
+        words = re.sub("\W", " ", message.content).split()
+        if current_letterboxed is None:
+            current_letterboxed = await LetterBoxed.fetch_from_nyt()
+        for reaction in current_letterboxed.react_to_words(words):
+            await message.add_reaction(reaction)
+
+    client.register_responder(MessageResponder(
+        lambda m: m.channel.id == letterboxed_thread_id,
+        letterboxed_react))
 
 
 async def test():

@@ -3,7 +3,11 @@ import json
 import re
 from io import BytesIO
 from timeit import default_timer
+from itertools import chain
+from typing import Union
+
 from db.queries import get_wiktionary_trie, get_word_rank
+
 from cairosvg import svg2png
 from tornado.httpclient import AsyncHTTPClient
 from PIL import Image
@@ -29,6 +33,9 @@ class ValidLetterBoxedWord:
     def __eq__(self, other):
         return self.word == other.word
 
+    def __hash__(self) -> int:
+        return hash(self.word)
+
     @property
     def cmp_key(self):
         return (self.first_letter, -self.unique_letters, self.word[1:])
@@ -52,6 +59,8 @@ class LetterBoxed:
                     (x for x in valid_words if get_word_rank(x) < 100_000)),
                 key=lambda x: x.cmp_key))
         self.par = par
+        self.solutions_cache: dict[int, set[tuple[ValidLetterBoxedWord]]] = {}
+        self.restricted_solutions_cache: dict[int, set[tuple[ValidLetterBoxedWord]]] = {}
 
     @classmethod
     async def fetch_from_nyt(cls):
@@ -76,13 +85,23 @@ class LetterBoxed:
         return 12
         # or return sum(map(self.sides, len), 0) for added headaches
 
-    def unique_letters_in_words(self, some_words: list[str]):
+    def unique_letters_in_words(self, some_words: list[ValidLetterBoxedWord]):
         letters = set()
         for word in some_words:
             letters.update(word.word)
         return len(letters)
 
-    def are_words_solution(self, some_words: list[str]):
+    def are_words_solution(
+            self, some_words: list[Union[ValidLetterBoxedWord, str]],
+            check_junctions: bool = False):
+        if len(some_words) < 1:
+            return False
+        if type(some_words[0]) is str:
+            some_words = list(map(ValidLetterBoxedWord, some_words))
+        if check_junctions:
+            for i in range(len(some_words)-1):
+                if some_words[i].word[-1] != some_words[i+1].word[0]:
+                    return False
         return self.unique_letters_in_words(some_words) == self.needed_letter_count
 
     def _get_solutions_by_length(
@@ -90,7 +109,7 @@ class LetterBoxed:
             max_length: int,
             valid_words: SortedList[ValidLetterBoxedWord],
             words_so_far: list[ValidLetterBoxedWord] = []
-    ) -> list[list[str]]:
+    ) -> list[tuple[str]]:
         # note that the length of words_so_far corresponds to the level of recursion
         # we're at
         if max_length == 1:
@@ -135,7 +154,7 @@ class LetterBoxed:
                 # exclude solutions who have subsequences that are "already" solutions
                 for sol in potential_solutions:
                     if not (self.are_words_solution(sol[1:]) or self.are_words_solution(sol[:-1])):
-                        found_solutions.append(sol)
+                        found_solutions.append(tuple(sol))
             return found_solutions
         else:
             # this is a level of recursion somewhere in between the first and last;
@@ -159,30 +178,33 @@ class LetterBoxed:
     ) -> dict[int, list[list[ValidLetterBoxedWord]]]:
         if restrict_words:
             valid_words = self.restricted_valid_words
+            cache = self.restricted_solutions_cache
         else:
             valid_words = self.valid_words
+            cache = self.solutions_cache
         result = {}
         for i in range(1, max_length+1):
-            result[i] = self._get_solutions_by_length(i, valid_words)
+            if i not in cache:
+                result[i] = set(self._get_solutions_by_length(i, valid_words))
+                cache[i] = result[i]
+            else:
+                result[i] = cache[i]
         return result
 
-    def get_solutions_quantity_statement(
-            self,
-            max_length: int = 3
-    ):
-        def verb(count: int):
+    def get_solutions_quantity_statement(self):
+        def verb(count: int) -> str:
             return "are" if count != 1 else "is"
 
-        def sol(count: int):
+        def sol(count: int) -> str:
             return "solutions" if count != 1 else "solution"
 
-        def num(number: int):
+        def num(number: int) -> str:
             numbers = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five",
                        6: "six", 7: "seven", 8: "eight", 9: "nine", 10: "ten"}
             if number in numbers:
                 return numbers[number]
             else:
-                return number
+                return f"{number:,}"
 
         unrestricted = self.get_solutions_by_length(3)
         restricted = self.get_solutions_by_length(3, True)
@@ -207,6 +229,15 @@ class LetterBoxed:
 
         return result
 
+    def get_words_in_solutions(self, max_length=3) -> dict[int, set[str]]:
+        solutions = self.get_solutions_by_length(max_length, False)
+        result = {}
+        for length in solutions:
+            result[length] = set(
+                str(x) for x in chain.from_iterable(solutions[length])
+            )
+        return result
+
     def percentage_of_words_in_wiktionary(self):
         wikt = get_wiktionary_trie()
         return round(
@@ -217,6 +248,44 @@ class LetterBoxed:
                 len(self.valid_words))
             * 100, 2)
 
+    def react_to_words(self, words: list[str]) -> list[str]:
+        reactions = []
+        solution_words = self.get_words_in_solutions(3)
+        words = [x.upper() for x in words]
+        # scan single words
+        for word in words:
+            if word in solution_words[2]:
+                if get_word_rank(word) < 100_000:
+                    reactions.append("🐫")
+                else:
+                    reactions.append("👀")
+            if word in solution_words[3]:
+                if get_word_rank(word) < 100_000:
+                    reactions.append("🌳")
+                else:
+                    reactions.append("🥶")
+
+        def has_solution(length: int):
+            for i in range(len(words)-(length-1)):
+                subseq = words[i:i+length]
+                if self.are_words_solution(subseq, True):
+                    return True
+            return False
+
+        # scan word sequences
+        if has_solution(4):
+            reactions.append("🥳")
+        if has_solution(3):
+            reactions.append("🥲")  # U+1F972; smiling-tear
+        if has_solution(2):
+            reactions.append("📦")
+            reactions.append("👑")
+        for word in words:
+            if self.are_words_solution([word]):
+                reactions.append("🤯")
+                break
+        return list(dict.fromkeys(reactions))  # removes duplicates; maintains order
+
     def __repr__(self):
         return f"<LetterBoxed sides={self.sides} par={self.par} len(valid_words)={len(self.valid_words)}>"
 
@@ -225,12 +294,12 @@ async def test():
     puzzle = await LetterBoxed.fetch_from_nyt()
     print(puzzle)
     print(puzzle.get_solutions_by_length(2))
-    print(puzzle.get_solutions_quantity_statement(1))
-    print(puzzle.get_solutions_quantity_statement(2))
-    print(puzzle.get_solutions_quantity_statement(3))
-    print("percentage of today's words in wiktionary:", puzzle.percentage_of_words_in_wiktionary())
-    print("restricted mode:")
-    print(puzzle.get_solutions_quantity_statement(3, True))
+    print(puzzle.get_solutions_by_length(2, True))
+    print(puzzle.get_solutions_quantity_statement())
+    print(
+        "percentage of today's words in wiktionary:",
+        puzzle.percentage_of_words_in_wiktionary()
+    )
     # print(puzzle.get_solutions_quantity_statement(4))  # slow!
 
 
