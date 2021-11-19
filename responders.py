@@ -9,9 +9,11 @@ import re
 import discord
 from PIL import Image
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union, Callable
 if TYPE_CHECKING:
     from MitchBot import MitchClient
+    from asyncio.futures import Future
+
 from db.queries import get_random_nickname
 
 
@@ -21,7 +23,13 @@ class MessageResponder():
     meets that condition.
     '''
 
-    def __init__(self, condition, responder, require_mention=False):
+    def __init__(
+        self,
+        condition: Union[str, list[str],
+                         Callable[[discord.Message], bool]],
+        responder: Union[Callable[[discord.Message], None],
+                         Callable[[discord.Message], Future]],
+            require_mention: bool = False):
         '''
         Args:
             condition: either a string or list of strings that can be used as a
@@ -191,3 +199,14 @@ def add_responses(bot: MitchClient):
         else:
             await message.channel.send("To make emoji, send something like \"make great_auk emoji\" and attach an image file with it")
     bot.register_responder(MessageResponder("make .* emoji", add_emoji, require_mention=True))
+
+    with open("text/untamed.txt") as untamed_words_file:
+        untamed_word_list = untamed_words_file.read()
+        untamed_words = [
+            x.strip('"')
+            for x in re.findall(r"(?:\"[^\"]+?\")|(?:\b(?:\w|-)+?\b)", untamed_word_list)]
+
+    async def react_negatively(message: discord.Message):
+        await message.add_reaction(random.choice(["🚫", "❌", "🛑", "🙅", "👎"]))
+
+    bot.register_responder(MessageResponder(untamed_words, react_negatively))

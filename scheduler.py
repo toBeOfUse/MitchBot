@@ -243,7 +243,7 @@ def schedule_tasks(client: MitchClient):
     else:
         letterboxed_thread_id = 907998436853444658  # test
         letterboxed_guild_id = 708955889276551198
-        if True:
+        if False:
             # in case we want to test puzzle posting directly
             post_new_letterboxed_at = (datetime.now(tz=et)+timedelta(seconds=5)).time()
 
