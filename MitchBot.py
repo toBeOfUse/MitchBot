@@ -23,11 +23,14 @@ class MitchClient(discord.Bot):
         self.initialized = False
 
     @classmethod
-    async def get_avatar_small(cls, user, final_size):
-        req_size = 2**(math.ceil(math.log(final_size, 2)))
-        return Image\
-            .open(BytesIO(await user.avatar_url_as(format="jpg", size=req_size).read())) \
-            .resize((final_size, final_size), Image.LANCZOS)
+    async def get_avatar_small(cls, user: discord.User, final_size: int):
+        ceil_size = 2**(math.ceil(math.log(final_size, 2)))
+        ceil_size_avatar = user.display_avatar.replace(size=ceil_size, format="png")
+        return Image.open(
+            BytesIO(await ceil_size_avatar.read())
+        ).resize(
+            (final_size, final_size), Image.LANCZOS
+        )
 
     async def on_ready(self):
         print(f'Logged on as {self.user}!')

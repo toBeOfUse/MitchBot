@@ -8,6 +8,7 @@ import re
 
 import discord
 from discord.commands import Option
+from discord.enums import SlashCommandOptionType
 from PIL import Image
 
 from typing import TYPE_CHECKING, Union, Callable
@@ -124,7 +125,21 @@ def add_responses(bot: MitchClient):
         )
     )
 
-    async def fight(message: discord.Message):
+    async def _fight(fighters: list[discord.User]) -> BytesIO:
+        i1 = await bot.get_avatar_small(fighters[0], 180)
+        i2 = await bot.get_avatar_small(fighters[1], 180)
+        bg = Image.open('images/fight.png')
+        blank = Image.new("RGBA", (640, 200), 0)
+        mask = Image.open('images/mask.png')
+        blank.paste(i1, (10, 10))
+        blank.paste(i2, (640-10-180, 10))
+        bg.paste(blank, (0, 0), mask)
+        image_bytes = BytesIO()
+        bg.save(image_bytes, format='PNG')
+        image_bytes.seek(0)
+        return image_bytes
+
+    async def message_fight(message: discord.Message):
         if len(
                 message.mentions) == 2 or (
                 len(message.mentions) == 3 and bot.user.mentioned_in(message)):
@@ -133,19 +148,21 @@ def add_responses(bot: MitchClient):
                     fighters = message.mentions
                 else:
                     fighters = [user for user in message.mentions if bot.user != user]
-                i1 = await bot.get_avatar_small(fighters[0], 180)
-                i2 = await bot.get_avatar_small(fighters[1], 180)
-                bg = Image.open('images/fight.png')
-                blank = Image.new("RGBA", (640, 200), 0)
-                mask = Image.open('images/mask.png')
-                blank.paste(i1, (10, 10))
-                blank.paste(i2, (640-10-180, 10))
-                bg.paste(blank, (0, 0), mask)
-                image_bytes = BytesIO()
-                bg.save(image_bytes, format='PNG')
-                image_bytes.seek(0)
-                await message.channel.send(file=discord.File(fp=image_bytes, filename='fight.png'))
-    bot.register_responder(MessageResponder(r"\bmake\b.*\bfight\b", fight))
+                await message.channel.send(
+                    file=discord.File(fp=await _fight(fighters), filename="fight.png")
+                )
+
+    bot.register_responder(MessageResponder(r"\bmake\b.*\bfight\b", message_fight))
+
+    @bot.slash_command(guild_ids=slash_command_guilds)
+    async def start_fight(
+            ctx: ApplicationContext,
+            fighter1: Option(SlashCommandOptionType.user, required=True),
+            fighter2: Option(SlashCommandOptionType.user, required=True)):
+        "Self-explanatory"
+        await ctx.respond(
+            file=discord.File(fp=await _fight([fighter1, fighter2]), filename="fight.png")
+        )
 
     async def kiss(message: discord.Message):
         async with message.channel.typing():
