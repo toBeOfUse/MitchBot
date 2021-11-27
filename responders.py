@@ -203,7 +203,7 @@ def add_responses(bot: MitchClient):
     with open("text/untamed.txt") as untamed_words_file:
         untamed_word_list = untamed_words_file.read()
         untamed_words = [
-            x.strip('"')
+            r"\b"+x.strip('"')+r"\b"
             for x in re.findall(r"(?:\"[^\"]+?\")|(?:\b(?:\w|-)+?\b)", untamed_word_list)]
 
     async def react_negatively(message: discord.Message):
