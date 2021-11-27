@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from responders import MessageResponder
 
 
-class MitchClient(discord.Client):
+class MitchClient(discord.Bot):
     def __init__(self):
         super().__init__()
         self.responses: list[MessageResponder] = []

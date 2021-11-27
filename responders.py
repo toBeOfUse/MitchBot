@@ -7,12 +7,14 @@ import random
 import re
 
 import discord
+from discord.commands import Option
 from PIL import Image
 
 from typing import TYPE_CHECKING, Union, Callable
 if TYPE_CHECKING:
     from MitchBot import MitchClient
     from asyncio.futures import Future
+    from discord.commands.context import ApplicationContext
 
 from db.queries import get_random_nickname
 
@@ -76,6 +78,11 @@ class MessageResponder():
 
 
 def add_responses(bot: MitchClient):
+    if "Test" in bot.user.name:
+        slash_command_guilds = [708955889276551198]
+    else:
+        slash_command_guilds = [678337806510063626]  # or, could be global. eventually
+
     bot.register_responder(
         MessageResponder(
             [r"\bbot\b", "mitchbot", "robot"],
@@ -182,6 +189,24 @@ def add_responses(bot: MitchClient):
             await message.reply(mess)
     bot.register_responder(MessageResponder(r"nicknames?", nickname, require_mention=True))
 
+    @bot.slash_command(guild_ids=slash_command_guilds)
+    async def obtain_nicknames(
+        ctx: ApplicationContext,
+        count: Option(int,
+                      min_value=1,
+                      default=5,
+                      max_value=25,
+                      description="how many",
+                      required=False)):
+        "https://www.findnicknames.com/cool-nicknames/"
+        if type(count) is Option:
+            count = count.default
+        nicknames = [get_random_nickname() for _ in range(0, count)]
+        await ctx.respond(
+            "Hello, " + (
+                ", ".join(nicknames[:-1])+", and/or " if count > 1 else ""
+            )+nicknames[-1]+".")
+
     async def add_emoji(message: discord.Message):
         emoji_name_match = re.search("make (.*) emoji", message.content)
         if (emoji_name_match and
@@ -210,3 +235,5 @@ def add_responses(bot: MitchClient):
         await message.add_reaction(random.choice(["🚫", "❌", "🛑", "🙅", "👎"]))
 
     bot.register_responder(MessageResponder(untamed_words, react_negatively))
+
+    asyncio.create_task(bot.register_commands())
