@@ -12,6 +12,7 @@ from PIL import Image
 # project files
 from responders import add_responses
 from scheduler import schedule_tasks
+from puzzle import add_bee_functionality
 if TYPE_CHECKING:
     from responders import MessageResponder
 
@@ -21,6 +22,7 @@ class MitchClient(discord.Bot):
         super().__init__()
         self.responses: list[MessageResponder] = []
         self.initialized = False
+        self.test_mode = "unknown"
 
     @classmethod
     async def get_avatar_small(cls, user: discord.User, final_size: int):
@@ -36,9 +38,11 @@ class MitchClient(discord.Bot):
         print(f'Logged on as {self.user}!')
         for guild in self.guilds:
             await guild.me.edit(nick="MitchBot")
+        self.test_mode = self.user.name == "MitchBotTest"
         if not self.initialized:
             add_responses(self)
             schedule_tasks(self)
+            add_bee_functionality(self)
             self.initialized = True
 
     def register_responder(self, responder: MessageResponder):

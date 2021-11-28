@@ -7,19 +7,23 @@ import re
 import sqlite3
 from typing import Optional, TYPE_CHECKING
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 import random
 from timeit import default_timer as timer
 from enum import Enum
 from collections import defaultdict
+from zoneinfo import ZoneInfo
 
 from tornado.httpclient import AsyncHTTPClient
 import discord
 from PIL import Image
 
 from db.queries import get_wiktionary_trie, get_random_renderer, get_word_rank
+from render import PuzzleRenderer
+from responders import MessageResponder
+from scheduler import repeatedly_schedule_task_for
 if TYPE_CHECKING or __name__ == "__main__":
-    from render import PuzzleRenderer
+    from MitchBot import MitchClient
 
 
 class Puzzle():
@@ -32,7 +36,14 @@ class Puzzle():
     save the puzzle and the answers that have come in so far in a simple SQLite
     database, can render itself to a PNG, and includes a functions to allow it to
     interact with discord Message objects.
+
+    Attributes:
+        todays (Puzzle): static, always stores the last constructed Puzzle
+        yesterdays (Puzzle): static, always stores the second-to-last constructed Puzzle
     """
+
+    todays: Puzzle = None
+    yesterdays: Puzzle = None
 
     class GuessJudgement(Enum):
         wrong_word = 1
@@ -110,6 +121,8 @@ class Puzzle():
         self.image: Optional[bytes] = None
         self.message_id: int = -1
         self.db_path: Optional[str] = None
+        Puzzle.yesterdays = Puzzle.todays
+        Puzzle.todays = self
 
     def __eq__(self, other):
         return self.center+self.outside == other.center+other.outside
@@ -332,6 +345,149 @@ class Puzzle():
             traceback.print_exc()
             db.close()
             return None
+
+
+# functions used by the Discord bot
+
+def andify(things: list):
+    """Helper function to put commas and spaces between the items in a list of things
+    with appropriate placement of the word "and." 
+    """
+    if len(things) < 1:
+        return ""
+    return (f'{", ".join(things[:-1])}' +
+            f'{", and " if len(things) > 2 else (" and " if len(things) > 1 else "")}' +
+            f'{things[-1]}')
+
+
+async def fetch_new_puzzle(quick_render=False):
+    print("fetching puzzle from NYT...")
+    await Puzzle.fetch_from_nyt()
+    print("fetched. rendering graphic...")
+    await Puzzle.todays.render(
+        PuzzleRenderer.available_renderers[0] if quick_render else None
+    )
+    print("graphic rendered. saving today's puzzle in database")
+    Puzzle.todays.persist()
+
+
+async def post_new_puzzle(channel: discord.TextChannel):
+    current_puzzle = Puzzle.todays
+    message_text = random.choice(["Good morning",
+                                  "Goedemorgen",
+                                  "Bon matin",
+                                  "Ohayō",
+                                  "Back at it again at Krispy Kremes",
+                                  "Hello",
+                                  "Bleep Bloop",
+                                  "Here is a puzzle",
+                                  "Guten Morgen"])+" ✨"
+    alt_words = current_puzzle.get_wiktionary_alternative_answers()
+    if len(alt_words) > 1:
+        alt_words_sample = alt_words[:5]
+        message_text += (
+            " Words from Wiktionary that should count today that " +
+            f"the NYT fails to acknowledge include: {andify(alt_words_sample)}.")
+    if Puzzle.yesterdays is not None:
+        previous_words = Puzzle.yesterdays.get_unguessed_words()
+        if len(previous_words) > 1:
+            message_text += (
+                " The least common word that no one got for yesterday's "
+                + f"puzzle was \"{previous_words[0]};\" "
+                + f"the most common word was \"{previous_words[-1]}.\""
+            )
+        elif len(previous_words) == 1:
+            message_text += (
+                " The only word no one got yesterday was " +
+                previous_words[0] +
+                "."
+            )
+    puzzle_filename = "puzzle."+current_puzzle.image_file_type
+    await channel.send(
+        content=message_text,
+        file=discord.File(BytesIO(current_puzzle.image), puzzle_filename))
+    status_message = await channel.send(content="Words found by you guys so far: None~")
+    current_puzzle.associate_with_message(status_message)
+
+
+async def respond_to_guesses(message: discord.Message):
+    current_puzzle = Puzzle.todays
+    already_found = len(current_puzzle.gotten_words)
+    reactions = current_puzzle.respond_to_guesses(message)
+    for reaction in reactions:
+        await message.add_reaction(reaction)
+    if len(current_puzzle.gotten_words) == already_found:
+        return
+    try:
+        puzzle_channel = message.channel
+        status_message: discord.Message = (
+            await puzzle_channel.fetch_message(current_puzzle.message_id)
+        )
+        found_words = sorted(list(current_puzzle.gotten_words-current_puzzle.pangrams))
+        status_text = 'Words found by you guys so far: '
+        status_text += (
+            f'||{andify(found_words)}.|| '
+        )
+        found_pangrams = sorted(
+            list(
+                current_puzzle.gotten_words.intersection(
+                    current_puzzle.pangrams)))
+        if len(found_pangrams) > 0:
+            status_text += f"Pangrams: ||{andify(found_pangrams)}.|| "
+        status_text += f' ({current_puzzle.percentage_complete}% complete'
+        if current_puzzle.percentage_complete == 100:
+            status_text += " 🎉)"
+        else:
+            status_text += ")"
+        await status_message.edit(content=status_text)
+
+    except:
+        print("could not retrieve Discord message and update puzzle status !!!")
+        traceback.print_exc()
+
+
+def add_bee_functionality(bot: MitchClient):
+    try:
+        Puzzle.retrieve_last_saved()
+    except:
+        print("could not retrieve last puzzle from database; " +
+              "puzzle functionality will stop until the next one is loaded")
+
+    et = ZoneInfo("America/New_York")
+    fetch_new_puzzle_at = time(hour=6, minute=50, tzinfo=et)
+    post_new_puzzle_at = time(hour=7, tzinfo=ZoneInfo("America/New_York"))
+    if not bot.test_mode:
+        puzzle_channel_id = 814334169299157001  # production
+        quick_render = False
+    else:
+        puzzle_channel_id = 888301952067325952  # test
+        if True:
+            # in case we want to test puzzle posting directly
+            fetch_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=10)).time()
+            post_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=20)).time()
+            quick_render = True
+
+    puzzle_channel = bot.get_channel(puzzle_channel_id)
+    asyncio.create_task(repeatedly_schedule_task_for(
+        fetch_new_puzzle_at, lambda: fetch_new_puzzle(quick_render), "fetch_new_puzzle"))
+    asyncio.create_task(repeatedly_schedule_task_for(
+        post_new_puzzle_at, lambda: post_new_puzzle(puzzle_channel), "post_new_puzzle"))
+
+    bot.register_responder(MessageResponder(
+        lambda m: m.channel.id == puzzle_channel_id, respond_to_guesses))
+
+    @bot.event
+    async def on_message_edit(before: discord.Message, after: discord.Message):
+        if before.author.id == bot.user.id:
+            return
+        if after.channel.id == puzzle_channel_id:
+            if before.content != after.content:
+                # remove old reactions
+                for reaction in after.reactions:
+                    if reaction.me:
+                        await reaction.remove(bot)
+                # replace with new ones
+                await respond_to_guesses(after)
 
 
 async def test():
