@@ -93,15 +93,17 @@ class LetterBoxed:
 
     def are_words_solution(
             self, some_words: list[Union[ValidLetterBoxedWord, str]],
-            check_junctions: bool = False):
+            check_basic_validity: bool = False):
         if len(some_words) < 1:
             return False
         if type(some_words[0]) is str:
             some_words = list(map(ValidLetterBoxedWord, some_words))
-        if check_junctions:
+        if check_basic_validity:
             for i in range(len(some_words)-1):
                 if some_words[i].word[-1] != some_words[i+1].word[0]:
                     return False
+            if any(word not in self.valid_words for word in some_words):
+                return False
         return self.unique_letters_in_words(some_words) == self.needed_letter_count
 
     def _get_solutions_by_length(
