@@ -135,6 +135,12 @@ def schedule_tasks(client: MitchClient):
                     + f"puzzle was \"{previous_words[0]};\" "
                     + f"the most common word was \"{previous_words[-1]}.\""
                 )
+            elif len(previous_words) == 1:
+                message_text += (
+                    " The only word no one got yesterday was " +
+                    previous_words[0] +
+                    "."
+                )
         # takes between 0 and 5 minutes, depending on the renderer
         puzzle_image = await current_puzzle.render(
             PuzzleRenderer.available_renderers[0] if quick_render else None
