@@ -123,7 +123,7 @@ def schedule_tasks(client: MitchClient):
                                       "Guten Morgen"])+" ✨"
         alt_words = current_puzzle.get_wiktionary_alternative_answers()
         if len(alt_words) > 1:
-            alt_words_sample = random.sample(alt_words, min(len(alt_words), 5))
+            alt_words_sample = alt_words[:5]
             message_text += (
                 " Words from Wiktionary that should count today that " +
                 f"the NYT fails to acknowledge include: {andify(alt_words_sample)}.")

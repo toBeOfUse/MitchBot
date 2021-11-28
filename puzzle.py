@@ -143,7 +143,7 @@ class Puzzle():
         Returns the words that use the required letters and are english words
         according to Wiktionary (according to data obtained by
         https://github.com/tatuylonen/wiktextract) but aren't in the official answers
-        list
+        list, sorted from most to least common (they... may all be quite uncommon)
         """
         start = timer()
         wiktionary_words = get_wiktionary_trie()
@@ -169,7 +169,7 @@ class Puzzle():
                     break
             else:
                 result.append(word)
-        return result
+        return sorted(result, key=lambda w: get_word_rank(w))
 
     async def render(self, renderer: PuzzleRenderer = None) -> bytes:
         """Renders the puzzle to an image; returns the image file as bytes and caches
