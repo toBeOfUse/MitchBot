@@ -242,7 +242,7 @@ def schedule_tasks(client: MitchClient):
     asyncio.create_task(repeatedly_schedule_task_for(poem_time, send_poem))
 
     # letterboxed scheduling:
-    post_new_letterboxed_at = time(hour=10, minute=30, tzinfo=ZoneInfo("America/New_York"))
+    post_new_letterboxed_at = time(hour=12, tzinfo=ZoneInfo("America/New_York"))
     if client.user.display_name != "MitchBotTest":
         letterboxed_thread_id = 897476378709065779  # production
         letterboxed_guild_id = 678337806510063626
@@ -271,7 +271,7 @@ def schedule_tasks(client: MitchClient):
         await target_thread.join()
         await target_thread.send(
             content=(
-                "Good morning ~ " +
+                "Good noon ~ " +
                 f"Today's puzzle is a par {new_boxed.par}. " +
                 new_boxed.get_solutions_quantity_statement() +
                 f" {new_boxed.percentage_of_words_in_wiktionary()}% " +
