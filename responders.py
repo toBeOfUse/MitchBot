@@ -149,7 +149,7 @@ def add_responses(bot: MitchClient):
 
     bot.register_responder(MessageResponder(r"\bmake\b.*\bfight\b", message_fight))
 
-    @bot.slash_command(guild_ids=slash_command_guilds)
+    @bot.slash_command(guild_ids=bot.command_guild_ids)
     async def start_fight(
             ctx: ApplicationContext,
             fighter1: Option(SlashCommandOptionType.user, required=True),
@@ -159,20 +159,32 @@ def add_responses(bot: MitchClient):
             file=discord.File(fp=await _fight([fighter1, fighter2]), filename="fight.png")
         )
 
-    async def kiss(message: discord.Message):
+    async def _kiss(recipient: discord.User):
+        avatar = await bot.get_avatar_small(recipient, 200)
+        blank = Image.new('RGBA', (200, 200), 0)
+        mask = Image.open("images/mask_rect.png")
+        blank.paste(avatar, (0, 0), mask)
+        smooch = Image.open("images/kiss.png")
+        final = Image.alpha_composite(blank, smooch)
+        image_bytes = BytesIO()
+        final.save(image_bytes, format='PNG')
+        image_bytes.seek(0)
+        return image_bytes
+
+    async def message_kiss(message: discord.Message):
         async with message.channel.typing():
-            recipient = message.author
-            avatar = await bot.get_avatar_small(recipient, 200)
-            blank = Image.new('RGBA', (200, 200), 0)
-            mask = Image.open("images/mask_rect.png")
-            blank.paste(avatar, (0, 0), mask)
-            smooch = Image.open("images/kiss.png")
-            final = Image.alpha_composite(blank, smooch)
-            image_bytes = BytesIO()
-            final.save(image_bytes, format='PNG')
-            image_bytes.seek(0)
-            await message.reply(file=discord.File(fp=image_bytes, filename='kiss.png'))
-    bot.register_responder(MessageResponder("kiss", kiss, require_mention=True))
+            await message.reply(
+                file=discord.File(fp=await _kiss(message.author),
+                                  filename='kiss.png')
+            )
+    bot.register_responder(MessageResponder("kiss", message_kiss, require_mention=True))
+
+    @bot.slash_command(guild_ids=bot.command_guild_ids)
+    async def kiss(ctx: ApplicationContext):
+        await ctx.respond(
+            file=discord.File(fp=await _kiss(ctx.user),
+                              filename='kiss.png')
+        )
 
     async def day_of_week(message: discord.Message):
         now = datetime.date.today()
