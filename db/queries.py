@@ -65,7 +65,7 @@ def get_random_nickname() -> str:
 
 def get_random_strategy() -> str:
     with open("text/strategies.txt", encoding="utf-8") as strategy_file:
-        return random.choice(strategy_file.read().split())
+        return random.choice(strategy_file.read().split("\n"))
 
 
 class TrieNode():
