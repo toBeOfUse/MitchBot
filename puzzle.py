@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 import random
 from timeit import default_timer as timer
 from enum import Enum
+from collections import defaultdict
 
 from tornado.httpclient import AsyncHTTPClient
 import discord
@@ -38,6 +39,41 @@ class Puzzle():
         good_word = 2
         pangram = 3
 
+    class HintTable:
+        def __init__(self, words: list[str]):
+            self.empty: bool = len(words) == 0
+            self.one_letters: dict[dict[int, int]] = defaultdict(lambda: defaultdict(lambda: 0))
+            self.two_letters: dict[int] = defaultdict(lambda: 0)
+            self.word_lengths: set[int] = set()
+            for word in words:
+                self.word_lengths.add(len(word))
+                self.one_letters[word[0]][len(word)] += 1
+                self.two_letters[word[0:2]] += 1
+
+        def format_table(self) -> str:
+            if self.empty:
+                return "There are no words"
+            f = "   "+" ".join(f"{x:<2}" for x in sorted(list(self.word_lengths)))+" Σ \n"
+            sorted_lengths = sorted(list(self.word_lengths))
+            sums_by_length = {x: 0 for x in sorted_lengths}
+            for letter, counts in sorted(
+                    list(self.one_letters.items()), key=lambda i: i[0]):
+                f += f"{letter.upper()}: " + " ".join(
+                    (f"{counts[c]:<2}" if counts[c] != 0 else "- ") for c in sorted_lengths)
+                f += f" {sum(counts.values()):<2}\n"
+                for length, count in counts.items():
+                    sums_by_length[length] += count
+            f += "Σ: "+" ".join(f"{c:<2}" for c in sums_by_length.values())
+            f += f" {sum(sums_by_length.values())}"
+            return f
+
+        def format_two_letters(self) -> str:
+            sorted_2l = sorted(
+                list(self.two_letters.items()), key=lambda x: x[0]
+            )
+            return ", ".join(
+                f"{l[0].upper()}{l[1]}: {c}" for (l, c) in sorted_2l)
+
     def __init__(
             self,
             originally_loaded: int,
@@ -51,6 +87,9 @@ class Puzzle():
         self.outside = [l.upper() for l in outside]
         self.pangrams = set(p.lower() for p in pangrams)
         self.answers = set(a.lower() for a in answers)
+        if (all(l in [self.center]+self.outside for l in "ACAB") and
+                self.center in "ACAB"):
+            self.answers.add("acab")
         for word in self.pangrams:
             self.answers.add(word)  # shouldn't be necessary but just in case
         self.gotten_words = set(w.lower() for w in gotten_words)
@@ -88,12 +127,16 @@ class Puzzle():
         else:
             return self.GuessJudgement.wrong_word
 
-    def get_unguessed_words(self) -> list[str]:
+    def get_unguessed_words(self, sort=True) -> list[str]:
         """returns the heretofore unguessed words in a list sorted from the least to
         the most common words."""
         unguessed = list(self.answers - self.gotten_words)
-        unguessed.sort(key=lambda w: get_word_rank(w), reverse=True)
+        if sort:
+            unguessed.sort(key=lambda w: get_word_rank(w), reverse=True)
         return unguessed
+
+    def get_unguessed_hints(self) -> HintTable:
+        return self.HintTable(self.get_unguessed_words(sort=False))
 
     def get_wiktionary_alternative_answers(self) -> list[str]:
         """
@@ -297,11 +340,17 @@ async def test():
     puzzle.persist("db/testpuzzles.db")
     print("today's words from least to most common:")
     print(puzzle.get_unguessed_words())
-    answers = iter(puzzle.answers)
-    puzzle.guess(next(answers))
+    # answers = iter(puzzle.answers)
+    # puzzle.guess(next(answers))
     print("words that the nyt doesn't want us to know about:")
     print(random.sample(puzzle.get_wiktionary_alternative_answers(), 5))
     puzzle.save()
+
+    print("Hints table:")
+    table = puzzle.get_unguessed_hints()
+    print(table.format_table())
+    print(table.format_two_letters())
+
     rendered = await puzzle.render()
     if puzzle.image_file_type == "png":
         print("displaying rendered png")
