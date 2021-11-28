@@ -181,6 +181,7 @@ def add_responses(bot: MitchClient):
 
     @bot.slash_command(guild_ids=bot.command_guild_ids)
     async def kiss(ctx: ApplicationContext):
+        "kis 🥺"
         await ctx.respond(
             file=discord.File(fp=await _kiss(ctx.user),
                               filename='kiss.png')

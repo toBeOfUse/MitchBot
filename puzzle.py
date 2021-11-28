@@ -462,7 +462,7 @@ def add_bee_functionality(bot: MitchClient):
         quick_render = False
     else:
         puzzle_channel_id = 888301952067325952  # test
-        if True:
+        if False:
             # in case we want to test puzzle posting directly
             fetch_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=10)).time()
             post_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=20)).time()
@@ -492,6 +492,7 @@ def add_bee_functionality(bot: MitchClient):
 
     @bot.slash_command(guild_ids=bot.command_guild_ids)
     async def obtain_hint(ctx: ApplicationContext):
+        "Spelling Bee hints or life advice (depending on the channel)"
         if ctx.channel_id == puzzle_channel_id:
             await ctx.respond(
                 Puzzle.todays.get_unguessed_hints().format_all_for_discord()
