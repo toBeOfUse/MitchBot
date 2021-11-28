@@ -18,12 +18,13 @@ from tornado.httpclient import AsyncHTTPClient
 import discord
 from PIL import Image
 
-from db.queries import get_wiktionary_trie, get_random_renderer, get_word_rank
+from db.queries import get_wiktionary_trie, get_random_renderer, get_word_rank, get_random_strategy
 from render import PuzzleRenderer
 from responders import MessageResponder
 from scheduler import repeatedly_schedule_task_for
-if TYPE_CHECKING or __name__ == "__main__":
+if TYPE_CHECKING:
     from MitchBot import MitchClient
+    from discord.commands.context import ApplicationContext
 
 
 class Puzzle():
@@ -488,6 +489,15 @@ def add_bee_functionality(bot: MitchClient):
                         await reaction.remove(bot)
                 # replace with new ones
                 await respond_to_guesses(after)
+
+    @bot.slash_command(guild_ids=bot.command_guild_ids)
+    async def obtain_hint(ctx: ApplicationContext):
+        if ctx.channel_id == puzzle_channel_id:
+            await ctx.respond(
+                Puzzle.todays.get_unguessed_hints().format_all_for_discord()
+            )
+        else:
+            await ctx.respond(get_random_strategy())
 
 
 async def test():
