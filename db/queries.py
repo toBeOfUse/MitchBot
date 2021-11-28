@@ -63,6 +63,11 @@ def get_random_nickname() -> str:
         return random.choice(json.load(nickname_file))
 
 
+def get_random_strategy() -> str:
+    with open("text/strategies.txt", encoding="utf-8") as strategy_file:
+        return random.choice(strategy_file.read().split())
+
+
 class TrieNode():
     """
     Stores a node in a trie that supports latin characters a-z (sorry, more
