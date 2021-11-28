@@ -41,18 +41,22 @@ class Puzzle():
 
     class HintTable:
         def __init__(self, words: list[str]):
+            words = [w.lower() for w in words]
             self.empty: bool = len(words) == 0
             self.one_letters: dict[dict[int, int]] = defaultdict(lambda: defaultdict(lambda: 0))
             self.two_letters: dict[int] = defaultdict(lambda: 0)
             self.word_lengths: set[int] = set()
+            self.pangram_count = 0
             for word in words:
                 self.word_lengths.add(len(word))
                 self.one_letters[word[0]][len(word)] += 1
                 self.two_letters[word[0:2]] += 1
+                if len(set(word)) == 7:
+                    self.pangram_count += 1
 
         def format_table(self) -> str:
             if self.empty:
-                return "There are no words"
+                return "There are no remaining words."
             f = "   "+" ".join(f"{x:<2}" for x in sorted(list(self.word_lengths)))+" Σ \n"
             sorted_lengths = sorted(list(self.word_lengths))
             sums_by_length = {x: 0 for x in sorted_lengths}
@@ -73,6 +77,16 @@ class Puzzle():
             )
             return ", ".join(
                 f"{l[0].upper()}{l[1]}: {c}" for (l, c) in sorted_2l)
+
+        def format_pangram_count(self) -> str:
+            return f"There are {self.pangram_count} remaining pangrams."
+
+        def format_all_for_discord(self) -> str:
+            result = f"```\n{self.format_table()}\n```\n"
+            result += self.format_two_letters()
+            result += "\n"
+            result += self.format_pangram_count()
+            return result
 
     def __init__(
             self,
