@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from io import BytesIO
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 # external package dependencies
 import discord
@@ -20,9 +20,11 @@ if TYPE_CHECKING:
 class MitchClient(discord.Bot):
     def __init__(self):
         super().__init__()
+        # set in on_ready:
         self.responses: list[MessageResponder] = []
         self.initialized = False
-        self.test_mode = "unknown"
+        self.test_mode: Union[bool, str] = "unknown"
+        self.command_guild_ids: list[int] = []
 
     @classmethod
     async def get_avatar_small(cls, user: discord.User, final_size: int):
@@ -39,6 +41,9 @@ class MitchClient(discord.Bot):
         for guild in self.guilds:
             await guild.me.edit(nick="MitchBot")
         self.test_mode = self.user.name == "MitchBotTest"
+        self.command_guild_ids = (
+            [708955889276551198] if self.test_mode else [678337806510063626]
+        )
         if not self.initialized:
             add_responses(self)
             schedule_tasks(self)

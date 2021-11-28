@@ -79,11 +79,6 @@ class MessageResponder():
 
 
 def add_responses(bot: MitchClient):
-    if "Test" in bot.user.name:
-        slash_command_guilds = [708955889276551198]
-    else:
-        slash_command_guilds = [678337806510063626]  # or, could be global. eventually
-
     bot.register_responder(
         MessageResponder(
             [r"\bbot\b", "mitchbot", "robot"],
@@ -206,7 +201,7 @@ def add_responses(bot: MitchClient):
             await message.reply(mess)
     bot.register_responder(MessageResponder(r"nicknames?", nickname, require_mention=True))
 
-    @bot.slash_command(guild_ids=slash_command_guilds)
+    @bot.slash_command(guild_ids=bot.command_guild_ids)
     async def obtain_nicknames(
         ctx: ApplicationContext,
         count: Option(int,
