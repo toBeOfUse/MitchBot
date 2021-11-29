@@ -50,6 +50,7 @@ class Puzzle():
         wrong_word = 1
         good_word = 2
         pangram = 3
+        already_gotten = 4
 
     class HintTable:
         def __init__(self, words: list[str]):
@@ -138,22 +139,24 @@ class Puzzle():
     def is_pangram(self, word: str) -> bool:
         return word.lower() in self.pangrams
 
-    def guess(self, word: str) -> int:
+    def guess(self, word: str) -> set[GuessJudgement]:
         """
-        determines whether a word counts for a point and/or is a pangram. uses
-        the GuessJudgement enum inner class.
+        determines whether a word counts for a point and/or is a pangram and/or has
+        already been gotten. uses the GuessJudgement enum inner class.
         """
+        result = set()
         w = word.lower()
-        if self.is_pangram(w):
+        if self.does_word_count(w):
+            result.add(self.GuessJudgement.good_word)
+            if self.is_pangram(w):
+                result.add(self.GuessJudgement.pangram)
+            if w in self.gotten_words:
+                result.add(self.GuessJudgement.already_gotten)
             self.gotten_words.add(w)
             self.save()
-            return self.GuessJudgement.pangram
-        elif self.does_word_count(w):
-            self.gotten_words.add(w)
-            self.save()
-            return self.GuessJudgement.good_word
         else:
-            return self.GuessJudgement.wrong_word
+            result.add(self.GuessJudgement.wrong_word)
+        return result
 
     def get_unguessed_words(self, sort=True) -> list[str]:
         """returns the heretofore unguessed words in a list sorted from the least to
@@ -255,13 +258,15 @@ class Puzzle():
         words = set(re.sub("\W", " ", message.content).split())
         points = 0
         pangram = False
+        already_gotten = False
         for word in words:
             guess_result = self.guess(word)
-            if guess_result == Puzzle.GuessJudgement.good_word:
+            if Puzzle.GuessJudgement.good_word in guess_result:
                 points += 1
-            elif guess_result == Puzzle.GuessJudgement.pangram:
-                points += 1
+            if Puzzle.GuessJudgement.pangram in guess_result:
                 pangram = True
+            if Puzzle.GuessJudgement.already_gotten in guess_result:
+                already_gotten = True
         if points > 0:
             reactions.append("👍")
             if points > 1:
@@ -269,6 +274,8 @@ class Puzzle():
                     reactions.append(num_emojis[int(num_char)])
         if pangram:
             reactions.append("🍳")
+        if already_gotten:
+            reactions.append("🤝")
         return reactions
 
     def persist(self, db_path: PathLike = "db/puzzles.db"):
@@ -387,15 +394,15 @@ async def post_new_puzzle(channel: discord.TextChannel):
     if len(alt_words) > 1:
         alt_words_sample = alt_words[:5]
         message_text += (
-            " Words from Wiktionary that should count today that " +
-            f"the NYT fails to acknowledge include: {andify(alt_words_sample)}.")
+            " Words from Wiktionary that should count today that the NYT "
+            f"fails to acknowledge include: {andify(alt_words_sample)}.")
     if Puzzle.yesterdays is not None:
         previous_words = Puzzle.yesterdays.get_unguessed_words()
         if len(previous_words) > 1:
             message_text += (
                 " The least common word that no one got for yesterday's "
-                + f"puzzle was \"{previous_words[0]};\" "
-                + f"the most common word was \"{previous_words[-1]}.\""
+                f"puzzle was \"{previous_words[0]};\" "
+                f"the most common word was \"{previous_words[-1]}.\""
             )
         elif len(previous_words) == 1:
             message_text += (
@@ -412,6 +419,8 @@ async def post_new_puzzle(channel: discord.TextChannel):
 
 
 async def respond_to_guesses(message: discord.Message):
+    if Puzzle.todays is None:
+        return
     current_puzzle = Puzzle.todays
     already_found = len(current_puzzle.gotten_words)
     reactions = current_puzzle.respond_to_guesses(message)
@@ -424,18 +433,17 @@ async def respond_to_guesses(message: discord.Message):
         status_message: discord.Message = (
             await puzzle_channel.fetch_message(current_puzzle.message_id)
         )
-        found_words = sorted(list(current_puzzle.gotten_words-current_puzzle.pangrams))
-        status_text = 'Words found by you guys so far: '
-        status_text += (
-            f'||{andify(found_words)}.|| '
+        found_words = sorted(
+            list(current_puzzle.gotten_words-current_puzzle.pangrams)
         )
+        status_text = 'Words found by you guys so far: '
+        status_text += f'||{andify(found_words)}.|| '
         found_pangrams = sorted(
-            list(
-                current_puzzle.gotten_words.intersection(
-                    current_puzzle.pangrams)))
+            list(current_puzzle.gotten_words & current_puzzle.pangrams)
+        )
         if len(found_pangrams) > 0:
             status_text += f"Pangrams: ||{andify(found_pangrams)}.|| "
-        status_text += f' ({current_puzzle.percentage_complete}% complete'
+        status_text += f'({current_puzzle.percentage_complete}% complete'
         if current_puzzle.percentage_complete == 100:
             status_text += " 🎉)"
         else:
@@ -462,7 +470,7 @@ def add_bee_functionality(bot: MitchClient):
         quick_render = False
     else:
         puzzle_channel_id = 888301952067325952  # test
-        if False:
+        if True:
             # in case we want to test puzzle posting directly
             fetch_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=10)).time()
             post_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=20)).time()
