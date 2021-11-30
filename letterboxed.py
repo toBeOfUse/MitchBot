@@ -7,6 +7,7 @@ from itertools import chain
 from typing import Union
 
 from db.queries import get_wiktionary_trie, get_word_rank
+from grammar import num, add_s, copula
 
 from cairosvg import svg2png
 from tornado.httpclient import AsyncHTTPClient
@@ -194,38 +195,28 @@ class LetterBoxed:
         return result
 
     def get_solutions_quantity_statement(self):
-        def verb(count: int) -> str:
-            return "are" if count != 1 else "is"
 
         def sol(count: int) -> str:
-            return "solutions" if count != 1 else "solution"
-
-        def num(number: int) -> str:
-            numbers = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five",
-                       6: "six", 7: "seven", 8: "eight", 9: "nine", 10: "ten"}
-            if number in numbers:
-                return numbers[number]
-            else:
-                return f"{number:,}"
+            return add_s("solution", count)
 
         unrestricted = self.get_solutions_by_length(3)
         restricted = self.get_solutions_by_length(3, True)
         result = ""
         if len(unrestricted[1]):
             one = len(unrestricted[1])
-            result += f"There {verb(one)} {num(one)} one-word {sol(one)} today. "
+            result += f"There {copula(one)} {num(one)} one-word {sol(one)} today. "
 
         two = len(unrestricted[2])
         two_r = len(restricted[2])
         three = len(unrestricted[3])
         three_r = len(restricted[3])
         result += (
-            f"There {verb(two)} {num(two)} two-word {sol(two)} " +
+            f"There {copula(two)} {num(two)} two-word {sol(two)} " +
             f"and {num(three)} three-word {sol(three)}. "
         )
         result += (
             "Limiting ourselves to the most common 100,000 words in the " +
-            f"Google Books corpus, there {verb(two_r)} {num(two_r)} two-word " +
+            f"Google Books corpus, there {copula(two_r)} {num(two_r)} two-word " +
             f"{sol(two_r)} and {num(three_r)} three-word {sol(three_r)}."
         )
 

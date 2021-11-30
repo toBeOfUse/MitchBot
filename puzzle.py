@@ -21,6 +21,7 @@ from PIL import Image
 from db.queries import get_wiktionary_trie, get_random_renderer, get_word_rank, get_random_strategy
 from render import PuzzleRenderer
 from responders import MessageResponder
+from grammar import andify, copula, add_s, num
 from scheduler import repeatedly_schedule_task_for
 if TYPE_CHECKING:
     from MitchBot import MitchClient
@@ -92,7 +93,8 @@ class Puzzle():
                 f"{l[0].upper()}{l[1]}: {c}" for (l, c) in sorted_2l)
 
         def format_pangram_count(self) -> str:
-            return f"There are {self.pangram_count} remaining pangrams."
+            c = self.pangram_count
+            return f"There {copula(c)} {num(c)} remaining {add_s('pangram', c)}."
 
         def format_all_for_discord(self) -> str:
             result = f"```\n{self.format_table()}\n```\n"
@@ -357,17 +359,6 @@ class Puzzle():
 
 # functions used by the Discord bot
 
-def andify(things: list):
-    """Helper function to put commas and spaces between the items in a list of things
-    with appropriate placement of the word "and." 
-    """
-    if len(things) < 1:
-        return ""
-    return (f'{", ".join(things[:-1])}' +
-            f'{", and " if len(things) > 2 else (" and " if len(things) > 1 else "")}' +
-            f'{things[-1]}')
-
-
 async def fetch_new_puzzle(quick_render=False):
     print("fetching puzzle from NYT...")
     await Puzzle.fetch_from_nyt()
@@ -539,6 +530,7 @@ async def test():
     table = puzzle.get_unguessed_hints()
     print(table.format_table())
     print(table.format_two_letters())
+    print(table.format_pangram_count())
 
     rendered = await puzzle.render()
     if puzzle.image_file_type == "png":
