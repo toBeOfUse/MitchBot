@@ -76,12 +76,12 @@ class Puzzle():
             sums_by_length = {x: 0 for x in sorted_lengths}
             for letter, counts in sorted(
                     list(self.one_letters.items()), key=lambda i: i[0]):
-                f += f"{letter.upper()}: " + " ".join(
+                f += f"{letter.upper()}  " + " ".join(
                     (f"{counts[c]:<2}" if counts[c] != 0 else "- ") for c in sorted_lengths)
                 f += f" {sum(counts.values()):<2}\n"
                 for length, count in counts.items():
                     sums_by_length[length] += count
-            f += "Σ: "+" ".join(f"{c:<2}" for c in sums_by_length.values())
+            f += "Σ  "+" ".join(f"{c:<2}" for c in sums_by_length.values())
             f += f" {sum(sums_by_length.values())}"
             return f
 
