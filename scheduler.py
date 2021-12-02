@@ -1,22 +1,17 @@
 from __future__ import annotations
 import asyncio
-from io import BytesIO
 from datetime import time, datetime, timedelta, timezone
 import inspect
 import random
 from typing import Callable, TYPE_CHECKING
-import re
-
-from letterboxed import LetterBoxed
 if TYPE_CHECKING:
     from MitchBot import MitchClient
 
-import discord
 from zoneinfo import ZoneInfo
 
-from responders import MessageResponder
-
 from db.queries import get_random_city_timezone, get_random_poem
+
+et = ZoneInfo("America/New_York")
 
 
 async def do_thing_after(seconds: float, thing: Callable, name: str = ""):
@@ -57,13 +52,17 @@ async def repeatedly_schedule_task_for(time_of_day: time, task: Callable, name: 
 
 
 def schedule_tasks(client: MitchClient):
-    et = ZoneInfo("America/New_York")
-
     # poetry scheduling:
+    poem_time = time(hour=2, tzinfo=et)
+    if client.test_mode and False:
+        poem_time = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)
+                     ).time().replace(tzinfo=timezone.utc)  # test
+
     async def send_poem():
         poetry_channel_id = (
             678337807764422691 if not client.test_mode else 888301952067325952
         )
+
         a_city, a_zone = get_random_city_timezone()
         a_time = datetime.now().astimezone(ZoneInfo(a_zone))
         a_body = random.choice(
@@ -81,62 +80,7 @@ def schedule_tasks(client: MitchClient):
         await client.get_channel(poetry_channel_id).send(prelude)
         poem = "\n".join("> "+x for x in get_random_poem().split("\n"))
         await client.get_channel(poetry_channel_id).send(poem)
-    poem_time = time(hour=2, tzinfo=et)
-    # poem_time = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)
-    #              ).time().replace(tzinfo=timezone.utc)  # test
     asyncio.create_task(repeatedly_schedule_task_for(poem_time, send_poem))
-
-    # letterboxed scheduling:
-    post_new_letterboxed_at = time(hour=12, tzinfo=et)
-    if not client.test_mode:
-        letterboxed_thread_id = 897476378709065779  # production
-        letterboxed_guild_id = 678337806510063626
-    else:
-        letterboxed_thread_id = 907998436853444658  # test
-        letterboxed_guild_id = 708955889276551198
-        if False:
-            # in case we want to test puzzle posting directly
-            post_new_letterboxed_at = (datetime.now(tz=et)+timedelta(seconds=5)).time()
-
-    current_letterboxed = None
-
-    async def post_letterboxed():
-        nonlocal current_letterboxed
-        new_boxed = await LetterBoxed.fetch_from_nyt()
-        current_letterboxed = new_boxed
-        new_boxed_image = await new_boxed.render()
-        target_guild = await client.fetch_guild(letterboxed_guild_id)
-        print("guild:")
-        print(target_guild.name)
-        print("threads:")
-        available_threads = await target_guild.active_threads()
-        for thread in available_threads:
-            print(thread)
-        target_thread = next(x for x in available_threads if x.id == letterboxed_thread_id)
-        await target_thread.join()
-        await target_thread.send(
-            content=(
-                "Good noon ~ " +
-                f"Today's puzzle is a par {new_boxed.par}. " +
-                new_boxed.get_solutions_quantity_statement() +
-                f" {new_boxed.percentage_of_words_in_wiktionary()}% " +
-                "of accepted answers have an English-language entry in Wiktionary."),
-            file=discord.File(BytesIO(new_boxed_image), "letterboxed.png")
-        )
-
-    asyncio.create_task(repeatedly_schedule_task_for(post_new_letterboxed_at, post_letterboxed))
-
-    async def letterboxed_react(message: discord.Message):
-        nonlocal current_letterboxed
-        words = re.sub("\W", " ", message.content).split()
-        if current_letterboxed is None:
-            current_letterboxed = await LetterBoxed.fetch_from_nyt()
-        for reaction in current_letterboxed.react_to_words(words):
-            await message.add_reaction(reaction)
-
-    client.register_responder(MessageResponder(
-        lambda m: m.channel.id == letterboxed_thread_id,
-        letterboxed_react))
 
 
 async def test():

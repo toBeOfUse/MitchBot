@@ -5,14 +5,20 @@ import json
 import re
 from io import BytesIO
 from timeit import default_timer
-from typing import Optional, Union
+from typing import Optional, Union, TYPE_CHECKING
+from datetime import time, datetime, timedelta
 
-from db.queries import get_wiktionary_trie, get_word_rank
-from grammar import num, add_s, copula
-
+import discord
 from cairosvg import svg2png
 from tornado.httpclient import AsyncHTTPClient
 from PIL import Image
+
+from responders import MessageResponder
+from scheduler import repeatedly_schedule_task_for, et
+from db.queries import get_wiktionary_trie, get_word_rank
+from grammar import num, add_s, copula
+if TYPE_CHECKING:
+    from MitchBot import MitchClient
 
 alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 assert len(alphabet) == 26
@@ -91,7 +97,7 @@ class LetterBoxedSolution:
                 if self.words[i].word[-1] != self.words[i+1].word[0]:
                     return False
             if valid_words is not None:
-                if any(word not in self.valid_words for word in self.words):
+                if any(word not in valid_words for word in self.words):
                     return False
         return self.unique_letters >= needed_letter_count
 
@@ -359,6 +365,62 @@ class LetterBoxed:
 
     def __repr__(self):
         return f"<LetterBoxed sides={self.sides} par={self.par} len(valid_words)={len(self.valid_words)}>"
+
+
+# letterboxed scheduling:
+
+current_letterboxed = None
+
+
+async def post_letterboxed(guild: discord.Guild, thread_id: int):
+    global current_letterboxed
+    new_boxed = await LetterBoxed.fetch_from_nyt()
+    current_letterboxed = new_boxed
+    new_boxed_image = await new_boxed.render()
+    available_threads = await guild.active_threads()
+    target_thread = next(x for x in available_threads if x.id == thread_id)
+    await target_thread.join()
+    await target_thread.send(
+        content=(
+            "Good noon ~ " +
+            f"Today's puzzle is a par {new_boxed.par}. " +
+            new_boxed.get_solutions_quantity_statement() +
+            f" {new_boxed.percentage_of_words_in_wiktionary()}% " +
+            "of accepted answers have an English-language entry in Wiktionary."),
+        file=discord.File(BytesIO(new_boxed_image), "letterboxed.png")
+    )
+
+
+async def letterboxed_react(message: discord.Message):
+    global current_letterboxed
+    words = re.sub("\W", " ", message.content).split()
+    if current_letterboxed is None:
+        current_letterboxed = await LetterBoxed.fetch_from_nyt()
+    for reaction in current_letterboxed.react_to_words(words):
+        await message.add_reaction(reaction)
+
+
+def add_letterboxed_functionality(client: MitchClient):
+    post_new_letterboxed_at = time(hour=12, tzinfo=et)
+    if not client.test_mode:
+        letterboxed_thread_id = 897476378709065779  # production
+        letterboxed_guild_id = 678337806510063626
+    else:
+        letterboxed_thread_id = 907998436853444658  # test
+        letterboxed_guild_id = 708955889276551198
+        if True:
+            # in case we want to test puzzle posting directly
+            post_new_letterboxed_at = (datetime.now(tz=et)+timedelta(seconds=5)).time()
+    client.register_responder(MessageResponder(
+        lambda m: m.channel.id == letterboxed_thread_id,
+        letterboxed_react))
+    asyncio.create_task(
+        repeatedly_schedule_task_for(
+            post_new_letterboxed_at,
+            lambda: post_letterboxed(
+                client.get_guild(letterboxed_guild_id),
+                letterboxed_thread_id),
+            "post_letterboxed"))
 
 
 async def test():

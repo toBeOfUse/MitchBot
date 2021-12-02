@@ -13,6 +13,7 @@ from PIL import Image
 from responders import add_responses
 from scheduler import schedule_tasks
 from puzzle import add_bee_functionality
+from letterboxed import add_letterboxed_functionality
 if TYPE_CHECKING:
     from responders import MessageResponder
 
@@ -48,6 +49,7 @@ class MitchClient(discord.Bot):
             add_responses(self)
             schedule_tasks(self)
             add_bee_functionality(self)
+            add_letterboxed_functionality(self)
             self.initialized = True
 
     def register_responder(self, responder: MessageResponder):
