@@ -180,7 +180,7 @@ class Trie():
                 "add_string not yet supported for Tries based on bytes (sorry)"
             )
 
-    def is_string_there(self, string: str):
+    def is_string_there(self, string: str) -> bool:
         if self.mode == "bytes":
             return trieparse.is_word_there(self.buffer, string.lower().encode("ascii"))
         else:

@@ -1,10 +1,11 @@
+from __future__ import annotations
 import asyncio
+from collections import defaultdict
 import json
 import re
 from io import BytesIO
 from timeit import default_timer
-from itertools import chain
-from typing import Union
+from typing import Optional, Union
 
 from db.queries import get_wiktionary_trie, get_word_rank
 from grammar import num, add_s, copula
@@ -12,12 +13,14 @@ from grammar import num, add_s, copula
 from cairosvg import svg2png
 from tornado.httpclient import AsyncHTTPClient
 from PIL import Image
-from sortedcontainers import SortedList
+
+alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+assert len(alphabet) == 26
 
 
-class ValidLetterBoxedWord:
-    def __init__(self, word: str, fake_unique_letters: bool = False):
-        self.word = word.upper() + ("ABCDEFGHIJKLMNOPQRSTUVWXYZ" if fake_unique_letters else "")
+class LetterBoxedWord:
+    def __init__(self, word: str):
+        self.word = word.upper()
 
     @property
     def unique_letters(self):
@@ -30,6 +33,10 @@ class ValidLetterBoxedWord:
     @property
     def last_letter(self):
         return self.word[-1]
+
+    @property
+    def is_common(self):
+        return get_word_rank(self.word) < 100_000
 
     def __eq__(self, other):
         return self.word == other.word
@@ -45,6 +52,99 @@ class ValidLetterBoxedWord:
         return self.word
 
 
+class LetterBoxedSolution:
+    def __init__(self, initial: list[LetterBoxedWord] = []):
+        self.words = initial
+
+    def add_word(self, word: LetterBoxedWord):
+        self.words.append(word)
+
+    def __len__(self) -> int:
+        return len(self.words)
+
+    def __add__(self, new_word: LetterBoxedWord):
+        return LetterBoxedSolution(self.words+[new_word])
+
+    def __hash__(self):
+        return hash(tuple(self.words))
+
+    def __str__(self):
+        return "->".join(str(x) for x in self.words)
+
+    @property
+    def unique_letters(self):
+        letters = set()
+        for word in self.words:
+            letters.update(word.word)
+        return len(letters)
+
+    def is_complete(
+            self,
+            check_basic_validity: bool = False,
+            valid_words: Optional[set[LetterBoxedWord]] = None,
+            needed_letter_count: int = 12):
+        if check_basic_validity:
+            # we don't need to check the basic validity if we're e. g. in the process
+            # of building the solution in the LetterBoxed class from the internal
+            # index
+            for i in range(len(self.words)-1):
+                if self.words[i].word[-1] != self.words[i+1].word[0]:
+                    return False
+            if valid_words is not None:
+                if any(word not in self.valid_words for word in self.words):
+                    return False
+        return self.unique_letters >= needed_letter_count
+
+
+class LetterBoxedSolutionSet:
+    def __init__(self, solutions: list[LetterBoxedSolution] = []):
+        self.solutions = set(solutions)
+        self._words = set()
+        self._common_words = set()
+        self._common_word_solutions = set()
+        self.finalized = False
+
+    def finalize(self):
+        for solution in self.solutions:
+            common = True
+            for word in solution.words:
+                self._words.add(word)
+                if word.is_common:
+                    self._common_words.add(word)
+                else:
+                    common = False
+            if common:
+                self._common_word_solutions.add(solution)
+        self.finalized = True
+
+    @property
+    def words(self):
+        if not self.finalized:
+            self.finalize()
+        return self._words
+
+    @property
+    def common_words(self):
+        if not self.finalized:
+            self.finalize()
+        return self._common_words
+
+    @property
+    def common_word_solutions(self):
+        if not self.finalized:
+            self.finalize()
+        return self._common_word_solutions
+
+    def __add__(self, other: LetterBoxedSolutionSet) -> LetterBoxedSolutionSet:
+        return LetterBoxedSolutionSet(self.solutions.union(other.solutions))
+
+    def __len__(self):
+        return len(self.solutions)
+
+    def __str__(self):
+        return "{"+", ".join(str(x) for x in self.solutions)+"}"
+
+
 class LetterBoxed:
     def __init__(
             self,
@@ -52,16 +152,25 @@ class LetterBoxed:
             valid_words: list[str],
             par: int):
         self.sides = sides
-        self.valid_words: SortedList[ValidLetterBoxedWord] = SortedList(
-            map(ValidLetterBoxedWord, valid_words), key=lambda x: x.cmp_key)
-        self.restricted_valid_words: SortedList[ValidLetterBoxedWord] = (
-            SortedList(
-                map(ValidLetterBoxedWord,
-                    (x for x in valid_words if get_word_rank(x) < 100_000)),
-                key=lambda x: x.cmp_key))
         self.par = par
-        self.solutions_cache: dict[int, set[tuple[ValidLetterBoxedWord]]] = {}
-        self.restricted_solutions_cache: dict[int, set[tuple[ValidLetterBoxedWord]]] = {}
+
+        self.valid_words: set[LetterBoxedWord] = set()
+        self.min_word_score: int = 10000000  # good enough (max possible score is currently 12)
+        self.max_word_score: int = 0
+        self.restricted_valid_words: set[LetterBoxedWord] = set()
+        self.index = {l: defaultdict(set) for l in alphabet}
+
+        print("building letterboxed index...")
+        for word in map(LetterBoxedWord, valid_words):
+            self.valid_words.add(word)
+            if word.is_common:
+                self.restricted_valid_words.add(word)
+            self.min_word_score = min(word.unique_letters, self.min_word_score)
+            self.max_word_score = max(word.unique_letters, self.max_word_score)
+            self.index[word.first_letter][word.unique_letters].add(word)
+        print("index built")
+
+        self.found_solution_sets: dict[int, LetterBoxedSolutionSet] = {}
 
     @classmethod
     async def fetch_from_nyt(cls):
@@ -84,132 +193,110 @@ class LetterBoxed:
     @property
     def needed_letter_count(self):
         return 12
-        # or return sum(map(self.sides, len), 0) for added headaches
+        # or return sum(map(self.sides, len)) for added headaches
 
-    def unique_letters_in_words(self, some_words: list[ValidLetterBoxedWord]):
-        letters = set()
-        for word in some_words:
-            letters.update(word.word)
-        return len(letters)
-
-    def are_words_solution(
-            self, some_words: list[Union[ValidLetterBoxedWord, str]],
-            check_basic_validity: bool = False):
-        if len(some_words) < 1:
-            return False
-        if type(some_words[0]) is str:
-            some_words = list(map(ValidLetterBoxedWord, some_words))
-        if check_basic_validity:
-            for i in range(len(some_words)-1):
-                if some_words[i].word[-1] != some_words[i+1].word[0]:
-                    return False
-            if any(word not in self.valid_words for word in some_words):
-                return False
-        return self.unique_letters_in_words(some_words) == self.needed_letter_count
-
-    def _get_solutions_by_length(
+    def get_valid_continuation(
             self,
-            max_length: int,
-            valid_words: SortedList[ValidLetterBoxedWord],
-            words_so_far: list[ValidLetterBoxedWord] = []
-    ) -> list[tuple[str]]:
-        # note that the length of words_so_far corresponds to the level of recursion
-        # we're at
-        if max_length == 1:
-            # special case: find any one-word solutions with a simple linear scan,
-            # recursion unhelpful
-            return [[x] for x in valid_words if self.are_words_solution([x])]
-        if self.are_words_solution(words_so_far):
-            # if we already have a solution, it's guaranteed not to be the right
-            # length (and we don't want to just keep tacking words on to fix this),
-            # so we've hit a dead end
-            return []
-        elif len(words_so_far) == max_length-1:
-            # this is the final letter of recursion; we need to take any word that
-            # turns words_so_far into a solution, tack it onto the end, and return
-            # the list of all the solutions we've found
-            next_start = words_so_far[-1].last_letter
-            found_solutions = []
-            unique_letters_so_far = self.unique_letters_in_words(words_so_far)
-            letters_still_needed = self.needed_letter_count - unique_letters_so_far
-            search_pos = valid_words.bisect_left(
-                ValidLetterBoxedWord(next_start, True))
-            while search_pos < len(valid_words):
-                word: ValidLetterBoxedWord = valid_words[search_pos]
-                if word == words_so_far[-1]:
-                    pass
-                elif word.unique_letters < letters_still_needed or word.first_letter != next_start:
-                    break
-                elif self.are_words_solution(words_so_far+[word]):
-                    found_solutions.append(words_so_far+[word])
-                search_pos += 1
-            return found_solutions
-        elif len(words_so_far) == 0:
-            # this is the first level of recursion; we have no restrictions and need
-            # to try starting with each individual word. this is also the most
-            # centralized place to eliminate solutions that are "padded" with words
-            # extraneous to their "core solution"; we can do that just by making sure
-            # that we couldn't remove a word from either the beginning or end (how to prove?)
-            found_solutions = []
-            potential_solutions = []
-            for word in valid_words:
-                potential_solutions = self._get_solutions_by_length(max_length, valid_words, [word])
-                # exclude solutions who have subsequences that are "already" solutions
-                for sol in potential_solutions:
-                    if not (self.are_words_solution(sol[1:]) or self.are_words_solution(sol[:-1])):
-                        found_solutions.append(tuple(sol))
-            return found_solutions
+            antecedent: Union[LetterBoxedWord, LetterBoxedSolution],
+            min_points=-1,
+            max_points=-1) -> set[LetterBoxedWord]:
+        """
+        Returns all valid follow-up words with scores in the range [min_points,
+        max_points]. Duplicate words are not considered valid follow-ups.
+        """
+        if type(antecedent) is LetterBoxedSolution:
+            last_word = antecedent.words[-1]
         else:
-            # this is a level of recursion somewhere in between the first and last;
-            # we just need to continue the chain of words_so_far in a valid way
-            next_start = words_so_far[-1].last_letter
-            potential_solutions = []
-            # select all words starting with next_start, hopefully
-            for word in valid_words.irange(
-                    ValidLetterBoxedWord(next_start, True),
-                    ValidLetterBoxedWord(chr(ord(next_start)+1), True)):
-                if word == words_so_far[-1]:
-                    pass
-                potential_solutions += self._get_solutions_by_length(
-                    max_length, valid_words, words_so_far + [word])
-            return potential_solutions
-
-    def get_solutions_by_length(
-        self,
-        max_length: int = 3,
-        restrict_words=False
-    ) -> dict[int, list[list[ValidLetterBoxedWord]]]:
-        if restrict_words:
-            valid_words = self.restricted_valid_words
-            cache = self.restricted_solutions_cache
-        else:
-            valid_words = self.valid_words
-            cache = self.solutions_cache
-        result = {}
-        for i in range(1, max_length+1):
-            if i not in cache:
-                result[i] = set(self._get_solutions_by_length(i, valid_words))
-                cache[i] = result[i]
-            else:
-                result[i] = cache[i]
+            last_word = antecedent
+        if min_points == -1:
+            min_points = self.min_word_score
+        if max_points == -1:
+            max_points = self.max_word_score
+        result = set()
+        for i in range(min_points, max_points+1):
+            result = result.union(self.index[last_word.last_letter][i])
+        result.discard(last_word)
         return result
+
+    def _recursive_search(
+        self,
+        desired_length: int,
+        words_so_far: LetterBoxedSolution = LetterBoxedSolution([])
+    ) -> Optional[LetterBoxedSolutionSet]:
+        """
+        recursive method. takes a solution that's in the process of being built,
+        finds each possible valid continuation word by searching self.index, and
+        either continues the recursion or returns the resulting solution set.
+        """
+        if words_so_far.is_complete():
+            # premature completion (this method would not have been called if
+            # words_so_far was already the desired length)
+            return None
+        if desired_length == 1:
+            # special case; no recursion required
+            solutions = []
+            for word in self.valid_words:
+                solution = LetterBoxedSolution([word])
+                if solution.is_complete():
+                    solutions.append(solution)
+            return LetterBoxedSolutionSet(solutions)
+        if len(words_so_far) == 0:
+            # we're just starting to build the solution; we can try any word because
+            # we have nothing to follow. we just have to start the recursive calling
+            # and gather and return the results.
+            result = LetterBoxedSolutionSet()
+            for word in self.valid_words:
+                solutions = self._recursive_search(desired_length, words_so_far+word)
+                if solutions is not None:
+                    result += solutions
+            result.finalize()
+            return result
+        elif len(words_so_far) == desired_length-1:
+            # we only need to build and return the final solution set possible with
+            # this "chain" so far
+            result = []
+            for followup in self.get_valid_continuation(
+                    words_so_far, self.needed_letter_count - words_so_far.unique_letters):
+                final = words_so_far + followup
+                if final.is_complete():
+                    result.append(final)
+            return LetterBoxedSolutionSet(result)
+        else:
+            # this is a level of recursion between the beginning and the end; we just
+            # have to continue the chain of words, call, and return the eventual
+            # result. don't bother with words that will prematurely complete the
+            # solution.
+            results = LetterBoxedSolutionSet()
+            for followup in self.get_valid_continuation(
+                    words_so_far, 0, 12 - words_so_far.unique_letters):
+                result = self._recursive_search(desired_length, words_so_far+followup)
+                if result is not None:
+                    results += result
+            return results
+
+    def get_solutions_by_length(self, length: int = 2) -> LetterBoxedSolutionSet:
+        if length in self.found_solution_sets:
+            return self.found_solution_sets[length]
+        else:
+            solutions = self._recursive_search(length)
+            self.found_solution_sets[length] = solutions
+            return solutions
 
     def get_solutions_quantity_statement(self):
 
         def sol(count: int) -> str:
             return add_s("solution", count)
 
-        unrestricted = self.get_solutions_by_length(3)
-        restricted = self.get_solutions_by_length(3, True)
+        solutions = {n: self.get_solutions_by_length(n) for n in range(1, 3+1)}
         result = ""
-        if len(unrestricted[1]):
-            one = len(unrestricted[1])
+        if len(solutions[1]):
+            one = len(solutions[1])
             result += f"There {copula(one)} {num(one)} one-word {sol(one)} today. "
 
-        two = len(unrestricted[2])
-        two_r = len(restricted[2])
-        three = len(unrestricted[3])
-        three_r = len(restricted[3])
+        two = len(solutions[2])
+        two_r = len(solutions[2].common_word_solutions)
+        three = len(solutions[3])
+        three_r = len(solutions[3].common_word_solutions)
         result += (
             f"There {copula(two)} {num(two)} two-word {sol(two)} " +
             f"and {num(three)} three-word {sol(three)}. "
@@ -222,46 +309,38 @@ class LetterBoxed:
 
         return result
 
-    def get_words_in_solutions(self, max_length=3) -> dict[int, set[str]]:
-        solutions = self.get_solutions_by_length(max_length, False)
-        result = {}
-        for length in solutions:
-            result[length] = set(
-                str(x) for x in chain.from_iterable(solutions[length])
-            )
-        return result
-
     def percentage_of_words_in_wiktionary(self):
         wikt = get_wiktionary_trie()
         return round(
             (
-                sum(
-                    (1 if wikt.is_string_there(x.word) else 0) for x in self.valid_words
-                ) /
+                sum(int(wikt.is_string_there(x.word)) for x in self.valid_words) /
                 len(self.valid_words))
             * 100, 2)
 
     def react_to_words(self, words: list[str]) -> list[str]:
         reactions = []
-        solution_words = self.get_words_in_solutions(3)
-        words = [x.upper() for x in words]
+        solutions = {n: self.get_solutions_by_length(n) for n in range(1, 3+1)}
+        words = [LetterBoxedWord(x) for x in words]
         # scan single words
         for word in words:
-            if word in solution_words[2]:
-                if get_word_rank(word) < 100_000:
+            if word in solutions[2].words:
+                if word in solutions[2].common_words:
                     reactions.append("🐫")
                 else:
                     reactions.append("👀")
-            if word in solution_words[3]:
-                if get_word_rank(word) < 100_000:
+            if word in solutions[3].words:
+                if word in solutions[3].common_words:
                     reactions.append("🌳")
                 else:
                     reactions.append("🥶")
 
         def has_solution(length: int):
             for i in range(len(words)-(length-1)):
-                subseq = words[i:i+length]
-                if self.are_words_solution(subseq, True):
+                if length == 1:
+                    subseq = [words[i]]
+                else:
+                    subseq = words[i:i+length]
+                if LetterBoxedSolution(subseq).is_complete(True, self.valid_words):
                     return True
             return False
 
@@ -269,14 +348,13 @@ class LetterBoxed:
         if has_solution(4):
             reactions.append("🥳")
         if has_solution(3):
-            reactions.append("🥲")  # U+1F972; smiling-tear
+            reactions.append("🥲")  # U+1F972; smiling-tear. no idea why it's invisible in vscode
         if has_solution(2):
             reactions.append("📦")
             reactions.append("👑")
-        for word in words:
-            if self.are_words_solution([word]):
-                reactions.append("🤯")
-                break
+        if has_solution(1):
+            reactions.append("🤯")
+
         return list(dict.fromkeys(reactions))  # removes duplicates; maintains order
 
     def __repr__(self):
@@ -287,13 +365,12 @@ async def test():
     puzzle = await LetterBoxed.fetch_from_nyt()
     print(puzzle)
     print(puzzle.get_solutions_by_length(2))
-    print(puzzle.get_solutions_by_length(2, True))
+    print(puzzle.get_solutions_by_length(2).common_word_solutions)
     print(puzzle.get_solutions_quantity_statement())
     print(
         "percentage of today's words in wiktionary:",
         puzzle.percentage_of_words_in_wiktionary()
     )
-    # print(puzzle.get_solutions_quantity_statement(4))  # slow!
 
 
 if __name__ == "__main__":
