@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from io import BytesIO
 import random
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Callable, Union
 
 # external package dependencies
 import discord
@@ -26,6 +26,7 @@ class MitchClient(discord.Bot):
         self.initialized = False
         self.test_mode: Union[bool, str] = "unknown"
         self.command_guild_ids: list[int] = []
+        self.hint_givers: list[Callable[[], bool]] = []
 
     @classmethod
     async def get_avatar_small(cls, user: discord.User, final_size: int):

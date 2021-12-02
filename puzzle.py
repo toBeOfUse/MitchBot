@@ -15,6 +15,7 @@ from collections import defaultdict
 from zoneinfo import ZoneInfo
 
 from tornado.httpclient import AsyncHTTPClient
+from tornado.ioloop import IOLoop
 import discord
 from PIL import Image
 
@@ -461,7 +462,7 @@ def add_bee_functionality(bot: MitchClient):
         quick_render = False
     else:
         puzzle_channel_id = 888301952067325952  # test
-        if True:
+        if False:
             # in case we want to test puzzle posting directly
             fetch_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=10)).time()
             post_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=20)).time()
@@ -546,4 +547,7 @@ async def test():
 
 
 if __name__ == "__main__":
-    asyncio.run(test())
+    try:
+        IOLoop.current().run_sync(test)
+    except KeyboardInterrupt:
+        print("Received SIGINT, exiting")

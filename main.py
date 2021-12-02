@@ -1,11 +1,13 @@
 # python libraries
-import asyncio
 import logging
+
+# external libraries
+from tornado.ioloop import IOLoop
 
 # project files
 import MitchBot
 
-logger = logging.getLogger('discord')
+logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 handler.setFormatter(logging.Formatter('%(asctime)s: %(levelname)s: %(name)s: %(message)s'))
@@ -19,4 +21,7 @@ async def main():
     await discord_client.connect()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        IOLoop.current().run_sync(main)
+    except KeyboardInterrupt:
+        print("Received SIGINT, exiting")
