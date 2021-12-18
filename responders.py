@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from asyncio.futures import Future
     from discord.commands.context import ApplicationContext
 
-from db.queries import get_random_nickname
+from db.queries import get_random_nickname, get_random_strategy
 
 
 class MessageResponder():
@@ -274,5 +274,13 @@ def add_responses(bot: MitchClient):
         await message.add_reaction(random.choice(["🚫", "❌", "🛑", "🙅", "👎"]))
 
     bot.register_responder(MessageResponder(untamed_words, react_negatively))
+
+    @bot.slash_command(guild_ids=bot.command_guild_ids)
+    async def obtain_hint(context: ApplicationContext):
+        "Puzzle hints or life advice, depending on the channel"
+        if context.channel_id in bot.hint_functions:
+            await bot.hint_functions[context.channel_id](context)
+        else:
+            await context.respond(get_random_strategy())
 
     asyncio.create_task(bot.register_commands())

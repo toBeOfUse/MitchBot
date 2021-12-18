@@ -3,11 +3,12 @@ from __future__ import annotations
 import math
 from io import BytesIO
 import random
-from typing import TYPE_CHECKING, Callable, Union
+from typing import TYPE_CHECKING, Callable, Union, Coroutine
 
 # external package dependencies
 import discord
 from PIL import Image
+from discord.commands.context import ApplicationContext
 
 # project files
 from responders import add_responses
@@ -26,7 +27,12 @@ class MitchClient(discord.Bot):
         self.initialized = False
         self.test_mode: Union[bool, str] = "unknown"
         self.command_guild_ids: list[int] = []
-        self.hint_givers: list[Callable[[], bool]] = []
+        # maps channel ids to hint functions triggered by the obtain_hint slash
+        # command
+        self.hint_functions: dict[int, Coroutine[ApplicationContext]] = {}
+
+    def register_hint(self, channel_id: int, function: Coroutine[ApplicationContext]):
+        self.hint_functions[channel_id] = function
 
     @classmethod
     async def get_avatar_small(cls, user: discord.User, final_size: int):
@@ -46,6 +52,7 @@ class MitchClient(discord.Bot):
         self.command_guild_ids = (
             [708955889276551198] if self.test_mode else [678337806510063626]
         )
+
         if not self.initialized:
             add_responses(self)
             schedule_tasks(self)

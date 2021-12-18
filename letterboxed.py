@@ -7,9 +7,11 @@ from io import BytesIO
 from timeit import default_timer
 from typing import Optional, Union, TYPE_CHECKING
 from datetime import time, datetime, timedelta
+from bs4 import BeautifulSoup as Soup
 
 import discord
 from cairosvg import svg2png
+from discord.commands.context import ApplicationContext
 from tornado.httpclient import AsyncHTTPClient
 from tornado.ioloop import IOLoop
 from PIL import Image
@@ -105,10 +107,10 @@ class LetterBoxedSolution:
 
 class LetterBoxedSolutionSet:
     def __init__(self, solutions: list[LetterBoxedSolution] = []):
-        self.solutions = set(solutions)
-        self._words = set()
-        self._common_words = set()
-        self._common_word_solutions = set()
+        self.solutions: set[LetterBoxedSolution] = set(solutions)
+        self._words: set[LetterBoxedWord] = set()
+        self._common_words: set[LetterBoxedWord] = set()
+        self._common_word_solutions: set[LetterBoxedWord] = set()
         self.finalized = False
 
     def finalize(self):
@@ -179,6 +181,10 @@ class LetterBoxed:
 
         self.found_solution_sets: dict[int, LetterBoxedSolutionSet] = {}
 
+        self.graphic = self.fill_letters_into_template()
+
+        self._hint_count = 0
+
     @classmethod
     async def fetch_from_nyt(cls):
         client = AsyncHTTPClient()
@@ -189,13 +195,53 @@ class LetterBoxed:
             game = json.loads(game_data.group(1))
             return cls(game["sides"], game["dictionary"], game["par"])
 
-    async def render(self) -> bytes:
+    def fill_letters_into_template(self) -> Soup:
+        """Goes through letterboxed_template.svg; fills letters into the right spots;
+        and gives each group containing a letter and a circle the id letter-[whatever
+        letter it is], like #letter-A"""
         with open("images/letterboxed_template.svg") as svg_template_file:
-            svg_template = svg_template_file.read()
-            for i in range(4):
-                for letter in self.sides[i]:
-                    svg_template = svg_template.replace("$S"+str(i+1), letter, 1)
-            return svg2png(svg_template, output_width=1000)
+            template = svg_template_file.read()
+        soup = Soup(template, "xml")
+        for i in range(1, 5):
+            side = soup.find(id=f"side-{i}")
+            side_letters = iter(self.sides[i-1])
+            for letter_thing in side.find_all("g"):
+                letter = next(side_letters)
+                letter_thing.find("tspan").string = letter.upper()
+                letter_thing["id"] = "letter-"+letter
+        return soup
+
+    def render(self) -> bytes:
+        return svg2png(str(self.graphic), output_width=1000)
+
+    def render_hint(self) -> bytes:
+        soup = Soup(str(self.graphic), "xml")
+        soup.find(id="arrowsgroup").decompose()
+        hint_word = sorted(
+            list(self.get_solutions_by_length(2).words),
+            key=lambda x: len(x.word),
+            reverse=True)[
+            self._hint_count].word
+        self._hint_count += 1
+        letter_pairs = []
+        for i in range(0, len(hint_word)-1, 2):
+            letter_pairs.append((hint_word[i], hint_word[i+1]))
+        print(hint_word+" becomes "+str(letter_pairs))
+        lettersgroup = soup.find(id="lettersgroup")
+        for pair in letter_pairs:
+            groups = [soup.find(id="letter-"+x) for x in pair]
+            circles = [x.find("circle") for x in groups]
+            points = [{"x": float(x["cx"]), "y": float(x["cy"])} for x in circles]
+            line = soup.new_tag(
+                "line", x1=points[0]["x"],
+                y1=points[0]["y"],
+                x2=points[1]["x"],
+                y2=points[1]["y"])
+            line["stroke"] = "#f8aa9e"
+            line["stroke-width"] = "1.5"
+            line["stroke-dasharray"] = "5"
+            lettersgroup.insert(0, line)
+        return svg2png(str(soup), output_width=1000)
 
     @property
     def needed_letter_count(self):
@@ -377,7 +423,7 @@ async def post_letterboxed(guild: discord.Guild, thread_id: int):
     global current_letterboxed
     new_boxed = await LetterBoxed.fetch_from_nyt()
     current_letterboxed = new_boxed
-    new_boxed_image = await new_boxed.render()
+    new_boxed_image = new_boxed.render()
     available_threads = await guild.active_threads()
     target_thread = next(x for x in available_threads if x.id == thread_id)
     await target_thread.join()
@@ -409,7 +455,7 @@ def add_letterboxed_functionality(client: MitchClient):
     else:
         letterboxed_thread_id = 907998436853444658  # test
         letterboxed_guild_id = 708955889276551198
-        if False:
+        if True:
             # in case we want to test puzzle posting directly
             post_new_letterboxed_at = (datetime.now(tz=et)+timedelta(seconds=5)).time()
     client.register_responder(MessageResponder(
@@ -423,17 +469,26 @@ def add_letterboxed_functionality(client: MitchClient):
                 letterboxed_thread_id),
             "post_letterboxed"))
 
+    async def obtain_hint(context: ApplicationContext):
+        if current_letterboxed:
+            await context.respond(
+                content="Use this to create a word :D",
+                file=discord.File(fp=BytesIO(current_letterboxed.render_hint()), filename="aletterboxedhint.png")
+            )
+    client.register_hint(letterboxed_thread_id, obtain_hint)
+
 
 async def test():
     puzzle = await LetterBoxed.fetch_from_nyt()
     print(puzzle)
     print(puzzle.get_solutions_by_length(2))
     print(puzzle.get_solutions_by_length(2).common_word_solutions)
-    print(puzzle.get_solutions_quantity_statement())
+    # print(puzzle.get_solutions_quantity_statement())
     print(
         "percentage of today's words in wiktionary:",
         puzzle.percentage_of_words_in_wiktionary()
     )
+    Image.open(BytesIO(puzzle.render_hint())).show()
 
 
 if __name__ == "__main__":

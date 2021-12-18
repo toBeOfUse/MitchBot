@@ -19,7 +19,7 @@ from tornado.ioloop import IOLoop
 import discord
 from PIL import Image
 
-from db.queries import get_wiktionary_trie, get_random_renderer, get_word_rank, get_random_strategy
+from db.queries import get_wiktionary_trie, get_random_renderer, get_word_rank
 from render import PuzzleRenderer
 from responders import MessageResponder
 from grammar import andify, copula, add_s, num
@@ -490,15 +490,13 @@ def add_bee_functionality(bot: MitchClient):
                 # replace with new ones
                 await respond_to_guesses(after)
 
-    @bot.slash_command(guild_ids=bot.command_guild_ids)
     async def obtain_hint(ctx: ApplicationContext):
         "Spelling Bee hints or life advice (depending on the channel)"
-        if ctx.channel_id == puzzle_channel_id:
-            await ctx.respond(
-                Puzzle.todays.get_unguessed_hints().format_all_for_discord()
-            )
-        else:
-            await ctx.respond(get_random_strategy())
+        await ctx.respond(
+            Puzzle.todays.get_unguessed_hints().format_all_for_discord()
+        )
+
+    bot.register_hint(puzzle_channel_id, obtain_hint)
 
 
 async def test():

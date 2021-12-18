@@ -13,6 +13,8 @@ tzdata = "*"
 timezonefinder = {extras = ["numba"], version = "*"}
 py-cord = {git = "https://github.com/toBeOfUse/pycord.git"}
 sortedcontainers = "*"
+beautifulsoup4 = "*"
+lxml = "*"
 
 [dev-packages]
 autopep8 = "*"
