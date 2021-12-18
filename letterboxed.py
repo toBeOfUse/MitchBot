@@ -22,7 +22,7 @@ from bs4 import BeautifulSoup as Soup
 from responders import MessageResponder
 from scheduler import repeatedly_schedule_task_for, et
 from db.queries import get_wiktionary_trie, get_word_rank
-from grammar import num, add_s, copula
+from grammar import andify, num, add_s, copula
 if TYPE_CHECKING:
     from MitchBot import MitchClient
 
@@ -547,19 +547,49 @@ if current_letterboxed is not None:
 async def post_letterboxed(guild: discord.Guild, thread_id: int):
     global current_letterboxed
     new_boxed = await LetterBoxed.fetch_from_nyt()
+    last_boxed = current_letterboxed
+
+    # find long words not in wiktionary to show off
+    unfound_words = list(
+        last_boxed.valid_words.difference(last_boxed.user_found_words)
+    )
+    unfound_words.sort(key=lambda x: len(x.word), reverse=True)
+    mystery_words = []
+    trie = get_wiktionary_trie()
+    def word_mysteriousness_test(x): return not trie.is_string_there(x.word)
+    i = 0
+    test_nullified = False
+    word_source = iter(word for word in unfound_words if word_mysteriousness_test(word))
+    while i < 5:
+        mystery_word = next(word_source, None)
+        if mystery_word is not None:
+            mystery_words.append(mystery_word)
+            i += 1
+        else:
+            # nullify the mysteriousness test if we've run out of words that aren't in
+            # wiktionary
+            if not test_nullified:
+                def word_mysteriousness_test(): return True
+                test_nullified = True
+            else:
+                break
+    mystery_words = list(map(lambda x: str(x).lower(), mystery_words))
+
     current_letterboxed = new_boxed
     current_letterboxed.persist()
     new_boxed_image = new_boxed.render()
     available_threads = await guild.active_threads()
     target_thread = next(x for x in available_threads if x.id == thread_id)
     await target_thread.join()
+    message = ("Good noon ~ " +
+               f"Today's puzzle is a par {new_boxed.par}. " +
+               new_boxed.get_solutions_quantity_statement() +
+               f" {new_boxed.percentage_of_words_in_wiktionary()}% " +
+               "of accepted answers have an English-language entry in Wiktionary.")
+    if len(mystery_words) > 0:
+        message += f" Some unfound words from yesterday were: {andify(mystery_words)}."
     await target_thread.send(
-        content=(
-            "Good noon ~ " +
-            f"Today's puzzle is a par {new_boxed.par}. " +
-            new_boxed.get_solutions_quantity_statement() +
-            f" {new_boxed.percentage_of_words_in_wiktionary()}% " +
-            "of accepted answers have an English-language entry in Wiktionary."),
+        content=message,
         file=discord.File(BytesIO(new_boxed_image), "letterboxed.png")
     )
 
