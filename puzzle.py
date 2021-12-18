@@ -291,21 +291,21 @@ class Puzzle():
 
     @classmethod
     def get_connection(self, db_path: PathLike) -> Optional[sqlite3.Connection]:
-        """Connects to the database, ensures the table exists with the correct
-        schema, and returns the connection."""
+        """Connects to the database, ensures the spelling_bee table exists with the
+        correct schema, and returns the connection."""
         latest_version = 1
         if db_path is None:
             return None
         db = sqlite3.connect(db_path)
         cur = db.cursor()
-        cur.execute("""create table if not exists puzzles
+        cur.execute("""create table if not exists spelling_bee
             (timestamp integer primary key, message_id integer, center text, outside text,
             pangrams text, answers text, gotten_words text);""")
-        cur.execute("""create index if not exists chrono on puzzles (timestamp desc);""")
+        cur.execute("""create index if not exists chrono on spelling_bee (timestamp desc);""")
 
         current_version = cur.execute("pragma user_version").fetchone()[0]
         if current_version == 0:
-            cur.execute("alter table puzzles add column image bytes")
+            cur.execute("alter table spelling_bee add column image bytes")
             cur.execute(f"pragma user_version={latest_version}")
             db.commit()
         return db
@@ -317,7 +317,7 @@ class Puzzle():
             return
         cur = db.cursor()
         cur.execute(
-            """insert or replace into puzzles
+            """insert or replace into spelling_bee
             (timestamp, message_id, center, outside, pangrams, answers, gotten_words, image)
             values (?, ?, ?, ?, ?, ?, ?, ?)""",
             (self.timestamp, self.message_id, self.center, json.dumps(list(self.outside)),
@@ -338,7 +338,7 @@ class Puzzle():
         try:
             latest = cur.execute("""select
                 timestamp, message_id, image, center, outside, pangrams, answers, gotten_words
-                from puzzles order by timestamp desc limit 1""").fetchone()
+                from spelling_bee order by timestamp desc limit 1""").fetchone()
             if latest is None:
                 db.close()
                 return None
@@ -352,7 +352,7 @@ class Puzzle():
                 loaded_puzzle.image = latest[2]
                 return loaded_puzzle
         except:
-            print("couldn't load latest puzzle from database")
+            print("couldn't load latest spelling bee from database")
             traceback.print_exc()
             db.close()
             return None
