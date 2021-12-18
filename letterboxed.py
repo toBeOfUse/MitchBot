@@ -2,12 +2,14 @@ from __future__ import annotations
 import asyncio
 from collections import defaultdict
 import json
+from os import PathLike
 import re
 from io import BytesIO
+import sqlite3
 from timeit import default_timer
 from typing import Optional, Union, TYPE_CHECKING
 from datetime import time, datetime, timedelta
-from bs4 import BeautifulSoup as Soup
+import traceback
 
 import discord
 from cairosvg import svg2png
@@ -15,6 +17,7 @@ from discord.commands.context import ApplicationContext
 from tornado.httpclient import AsyncHTTPClient
 from tornado.ioloop import IOLoop
 from PIL import Image
+from bs4 import BeautifulSoup as Soup
 
 from responders import MessageResponder
 from scheduler import repeatedly_schedule_task_for, et
@@ -113,6 +116,21 @@ class LetterBoxedSolutionSet:
         self._common_word_solutions: set[LetterBoxedWord] = set()
         self.finalized = False
 
+    def to_lists(self) -> list[list[str]]:
+        solutions = []
+        for solution in self.solutions:
+            solutions.append([x.word for x in solution.words])
+        return solutions
+
+    @classmethod
+    def from_lists(cls, lists: list[list[str]]) -> LetterBoxedSolutionSet:
+        solutions = set()
+        for list in lists:
+            solutions.add(
+                LetterBoxedSolution([LetterBoxedWord(x) for x in list])
+            )
+        return cls(solutions)
+
     def finalize(self):
         for solution in self.solutions:
             common = True
@@ -144,8 +162,14 @@ class LetterBoxedSolutionSet:
             self.finalize()
         return self._common_word_solutions
 
-    def __add__(self, other: LetterBoxedSolutionSet) -> LetterBoxedSolutionSet:
-        return LetterBoxedSolutionSet(self.solutions.union(other.solutions))
+    def __add__(
+        self,
+        other: LetterBoxedSolutionSet | LetterBoxedSolution
+    ) -> LetterBoxedSolutionSet:
+        if isinstance(other, LetterBoxedSolutionSet):
+            return LetterBoxedSolutionSet(self.solutions.union(other.solutions))
+        else:
+            return LetterBoxedSolutionSet(self.solutions.union(set([other])))
 
     def __len__(self):
         return len(self.solutions)
@@ -157,11 +181,13 @@ class LetterBoxedSolutionSet:
 class LetterBoxed:
     def __init__(
             self,
+            loaded_timestamp: int,
             sides: list[tuple[str, str, str]],
             valid_words: list[str],
             par: int):
         self.sides = sides
         self.par = par
+        self.timestamp = loaded_timestamp
 
         self.valid_words: set[LetterBoxedWord] = set()
         self.min_word_score: int = 10000000  # good enough (max possible score is currently 12)
@@ -183,7 +209,84 @@ class LetterBoxed:
 
         self.graphic = self.fill_letters_into_template()
 
-        self._hint_count = 0
+        self.user_found_words: set[LetterBoxedWord] = set()
+        self.hints_given: set[LetterBoxedWord] = set()
+
+        self.db_path: str = ""
+
+    def persist(self, db_path="db/puzzles.db"):
+        self.db_path = db_path
+        self.save()
+
+    @classmethod
+    def get_connection(self, db_path: PathLike) -> Optional[sqlite3.Connection]:
+        """Connects to the database, ensures the letterboxed table exists with the
+        correct schema, and returns the connection."""
+        if db_path is None:
+            return None
+        db = sqlite3.connect(db_path)
+        cur = db.cursor()
+        cur.execute("""create table if not exists letterboxed
+        (timestamp integer primary key, par integer, side1 text, side2 text, side3 text,
+        side4 text, valid_words text, found_solutions text,
+        user_found_words text, hints_given text);""")
+        cur.execute("""create index if not exists chrono on letterboxed(timestamp);""")
+        db.commit()
+        return db
+
+    def save(self):
+        db = self.get_connection(self.db_path)
+        if db is None:
+            return
+        cur = db.cursor()
+        cur.execute(
+            """insert or replace into letterboxed
+            (timestamp, par, side1, side2, side3, side4, valid_words,
+            found_solutions, user_found_words, hints_given)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);""",
+            (self.timestamp, self.par, *["".join(x) for x in self.sides],
+             json.dumps([x.word for x in self.valid_words]),
+             json.dumps(
+                 {key: value.to_lists() for key, value in self.found_solution_sets.items()}
+            ), json.dumps([x.word for x in self.user_found_words]),
+                json.dumps([x.word for x in self.hints_given]))
+        )
+        db.commit()
+        db.close()
+
+    @classmethod
+    def retrieve_last_saved(cls, db_path: str = "db/puzzles.db") -> Optional[LetterBoxed]:
+        db = cls.get_connection(db_path)
+        cur = db.cursor()
+        try:
+            latest = cur.execute("""select
+            timestamp, par, side1, side2, side3, side4, valid_words,
+            found_solutions, user_found_words, hints_given
+            from letterboxed order by timestamp desc limit 1;""").fetchone()
+            db.close()
+            if latest is None:
+                return None
+            else:
+                loaded_puzzle = cls(
+                    latest[0],
+                    [tuple(x) for x in latest[2:6]],
+                    json.loads(latest[6]),
+                    latest[1])
+                loaded_puzzle.found_solution_sets = {
+                    int(k): LetterBoxedSolutionSet.from_lists(v)
+                    for k, v in json.loads(latest[7]).items()}
+                loaded_puzzle.user_found_words = (
+                    set(map(LetterBoxedWord, json.loads(latest[8])))
+                )
+                loaded_puzzle.hints_given = (
+                    set(map(LetterBoxedWord, json.loads(latest[9])))
+                )
+                return loaded_puzzle
+        except:
+            print("couldn't load latest letterboxed from database")
+            traceback.print_exc()
+            db.close()
+            return None
 
     @classmethod
     async def fetch_from_nyt(cls):
@@ -193,7 +296,11 @@ class LetterBoxed:
         game_data = re.search("window.gameData = (.*?)</script>", html)
         if game_data:
             game = json.loads(game_data.group(1))
-            return cls(game["sides"], game["dictionary"], game["par"])
+            return cls(
+                int(datetime.now().timestamp()),
+                game["sides"],
+                game["dictionary"],
+                game["par"])
 
     def fill_letters_into_template(self) -> Soup:
         """Goes through letterboxed_template.svg; fills letters into the right spots;
@@ -214,19 +321,27 @@ class LetterBoxed:
     def render(self) -> bytes:
         return svg2png(str(self.graphic), output_width=1000)
 
-    def render_hint(self) -> bytes:
+    def render_hint(self) -> Optional[bytes]:
+        # try to find a word that hasn't been put out there by a user or given as a
+        # hint already, prioritizing nice long ones
+        hint_words = sorted(
+            list(self.get_solutions_by_length(2).words),
+            key=lambda x: len(x.word), reverse=True)
+        hint_word = next((x for x in hint_words
+                         if x not in self.hints_given and
+                         x not in self.user_found_words), None)
+        if not hint_word:
+            return None
+        else:
+            self.hints_given.add(hint_word)
+            hint_word = hint_word.word
+        # copy the graphic into a new Soup for modification
         soup = Soup(str(self.graphic), "xml")
         soup.find(id="arrowsgroup").decompose()
-        hint_word = sorted(
-            list(self.get_solutions_by_length(2).words),
-            key=lambda x: len(x.word),
-            reverse=True)[
-            self._hint_count].word
-        self._hint_count += 1
         letter_pairs = []
         for i in range(0, len(hint_word)-1, 2):
             letter_pairs.append((hint_word[i], hint_word[i+1]))
-        print(hint_word+" becomes "+str(letter_pairs))
+        print(f"{hint_word} becomes {letter_pairs}")
         lettersgroup = soup.find(id="lettersgroup")
         for pair in letter_pairs:
             groups = [soup.find(id="letter-"+x) for x in pair]
@@ -333,6 +448,7 @@ class LetterBoxed:
         else:
             solutions = self._recursive_search(length)
             self.found_solution_sets[length] = solutions
+            self.save()
             return solutions
 
     def get_solutions_quantity_statement(self):
@@ -376,6 +492,8 @@ class LetterBoxed:
         words = [LetterBoxedWord(x) for x in words]
         # scan single words
         for word in words:
+            if word in self.valid_words:
+                self.user_found_words.add(word)
             if word in solutions[2].words:
                 if word in solutions[2].common_words:
                     reactions.append("🐫")
@@ -387,15 +505,16 @@ class LetterBoxed:
                 else:
                     reactions.append("🥶")
 
-        def has_solution(length: int):
+        def has_solution(length: int) -> Optional[LetterBoxedSolution]:
             for i in range(len(words)-(length-1)):
                 if length == 1:
                     subseq = [words[i]]
                 else:
                     subseq = words[i:i+length]
-                if LetterBoxedSolution(subseq).is_complete(True, self.valid_words):
-                    return True
-            return False
+                subseq = LetterBoxedSolution(subseq)
+                if subseq.is_complete(True, self.valid_words):
+                    return subseq
+            return None
 
         # scan word sequences
         if has_solution(4):
@@ -471,24 +590,41 @@ def add_letterboxed_functionality(client: MitchClient):
 
     async def obtain_hint(context: ApplicationContext):
         if current_letterboxed:
-            await context.respond(
-                content="Use this to create a word :D",
-                file=discord.File(fp=BytesIO(current_letterboxed.render_hint()), filename="aletterboxedhint.png")
-            )
+            hint = current_letterboxed.render_hint()
+            if hint is not None:
+                await context.respond(
+                    content="Use this to create a word :D",
+                    file=discord.File(
+                        fp=BytesIO(),
+                        filename="aletterboxedhint.png"
+                    )
+                )
+            else:
+                context.respond("You have all the pieces, right now.")
     client.register_hint(letterboxed_thread_id, obtain_hint)
 
 
 async def test():
-    puzzle = await LetterBoxed.fetch_from_nyt()
+    puzzle = LetterBoxed.retrieve_last_saved()
+    if puzzle is None:
+        print("no puzzle in db, fetching from the times")
+        puzzle = await LetterBoxed.fetch_from_nyt()
     print(puzzle)
     print(puzzle.get_solutions_by_length(2))
     print(puzzle.get_solutions_by_length(2).common_word_solutions)
-    # print(puzzle.get_solutions_quantity_statement())
+    print(puzzle.get_solutions_quantity_statement())
     print(
         "percentage of today's words in wiktionary:",
         puzzle.percentage_of_words_in_wiktionary()
     )
-    Image.open(BytesIO(puzzle.render_hint())).show()
+    puzzle.react_to_words(["pulton", "neckwear"])
+    puzzle.react_to_words(["CEPE", "ENWRAP", "PROLETKULT"])
+    hint = puzzle.render_hint()
+    if hint is not None:
+        Image.open(BytesIO(hint)).show()
+    else:
+        print("no hints left; all out of hints")
+    puzzle.persist("db/puzzles.db")
 
 
 if __name__ == "__main__":
