@@ -334,6 +334,7 @@ class LetterBoxed:
             return None
         else:
             self.hints_given.add(hint_word)
+            self.save()
             hint_word = hint_word.word
         # copy the graphic into a new Soup for modification
         soup = Soup(str(self.graphic), "xml")
@@ -491,6 +492,7 @@ class LetterBoxed:
         solutions = {n: self.get_solutions_by_length(n) for n in range(1, 3+1)}
         words = [LetterBoxedWord(x) for x in words]
         # scan single words
+        user_found_words_count = len(self.user_found_words)
         for word in words:
             if word in self.valid_words:
                 self.user_found_words.add(word)
@@ -504,6 +506,8 @@ class LetterBoxed:
                     reactions.append("🌳")
                 else:
                     reactions.append("🥶")
+        if user_found_words_count != len(self.user_found_words):
+            self.save()
 
         def has_solution(length: int) -> Optional[LetterBoxedSolution]:
             for i in range(len(words)-(length-1)):
@@ -535,13 +539,16 @@ class LetterBoxed:
 
 # letterboxed scheduling:
 
-current_letterboxed = None
+current_letterboxed = LetterBoxed.retrieve_last_saved()
+if current_letterboxed is not None:
+    current_letterboxed.persist()
 
 
 async def post_letterboxed(guild: discord.Guild, thread_id: int):
     global current_letterboxed
     new_boxed = await LetterBoxed.fetch_from_nyt()
     current_letterboxed = new_boxed
+    current_letterboxed.persist()
     new_boxed_image = new_boxed.render()
     available_threads = await guild.active_threads()
     target_thread = next(x for x in available_threads if x.id == thread_id)
@@ -574,7 +581,7 @@ def add_letterboxed_functionality(client: MitchClient):
     else:
         letterboxed_thread_id = 907998436853444658  # test
         letterboxed_guild_id = 708955889276551198
-        if True:
+        if False:
             # in case we want to test puzzle posting directly
             post_new_letterboxed_at = (datetime.now(tz=et)+timedelta(seconds=5)).time()
     client.register_responder(MessageResponder(
@@ -595,12 +602,12 @@ def add_letterboxed_functionality(client: MitchClient):
                 await context.respond(
                     content="Use this to create a word :D",
                     file=discord.File(
-                        fp=BytesIO(),
+                        fp=BytesIO(hint),
                         filename="aletterboxedhint.png"
                     )
                 )
             else:
-                context.respond("You have all the pieces, right now.")
+                await context.respond("No hints left -  all out of hints.")
     client.register_hint(letterboxed_thread_id, obtain_hint)
 
 
@@ -624,7 +631,7 @@ async def test():
         Image.open(BytesIO(hint)).show()
     else:
         print("no hints left; all out of hints")
-    puzzle.persist("db/puzzles.db")
+    puzzle.persist()
 
 
 if __name__ == "__main__":
