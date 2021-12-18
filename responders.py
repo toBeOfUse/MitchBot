@@ -238,12 +238,23 @@ def add_responses(bot: MitchClient):
         if (emoji_name_match and
             len(emoji_name_match.group(1).strip()) and
                 len(message.attachments) > 0):
-            emoji_name = emoji_name_match.group(1).strip()
+            emoji_name = emoji_name_match.group(1).strip().strip('"\'')
             emoji_file = BytesIO()
             await message.attachments[0].save(emoji_file, seek_begin=True)
-            emoji_file = emoji_file.read()
+            # resize image so that the largest dimension is 128 pixels to help with
+            # file size
+            emoji_image = Image.open(emoji_file, formats=["jpeg", "png", "gif"])
+            largest_dimension = max(emoji_image.width, emoji_image.height)
+            scale_factor = 128/largest_dimension
+            emoji_image = emoji_image.resize(
+                (round(emoji_image.width * scale_factor), round(emoji_image.height * scale_factor)),
+                resample=Image.LANCZOS)
+            resized_file = BytesIO()
+            emoji_image.save(resized_file, format="png")
+            resized_file.seek(0)
+            resized_file = resized_file.read()
             try:
-                created_emoji = await message.guild.create_custom_emoji(name=emoji_name, image=emoji_file)
+                created_emoji = await message.guild.create_custom_emoji(name=emoji_name, image=resized_file)
                 await message.channel.send("Done "+str(created_emoji))
             except Exception as e:
                 print(e)
