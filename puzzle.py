@@ -499,10 +499,44 @@ def add_bee_functionality(bot: MitchClient):
 
     bot.register_hint(puzzle_channel_id, obtain_hint)
 
+    async def monitor_website():
+        while True:
+            website_reached = False
+            client = AsyncHTTPClient()
+            try:
+                response = await client.fetch("https://www.nytimes.com/puzzles/spelling-bee")
+                html = response.body.decode("utf-8")
+                website_reached = True
+            except:
+                print("nyt website appears to be down")
+                puzzle_channel = bot.get_channel(puzzle_channel_id)
+                await puzzle_channel.send(
+                    "Warning⚠️: The NYT Spelling Bee site appears to have gone "
+                    "down or to have been moved as of now, "
+                    "which might waylay upcoming puzzle posts.")
+            if website_reached:
+                try:
+                    game_data = re.search("window.gameData = (.*?)</script>", html)
+                    game = json.loads(game_data.group(1))
+                    current_game = game["today"]
+                    assert "centerLetter" in current_game
+                    assert "outerLetters" in current_game
+                    assert "pangrams" in current_game
+                    assert "answers" in current_game
+                    print("spelling bee website appears as expected")
+                except:
+                    print("nyt website appears to have changed")
+                    puzzle_channel = bot.get_channel(puzzle_channel_id)
+                    await puzzle_channel.send(
+                        "Warning⚠️: The NYT Spelling Bee site's code appears to have changed "
+                        "to-day, which might waylay upcoming puzzle posts.")
+            await asyncio.sleep(60*60*6)
+    asyncio.create_task(monitor_website())
+
 
 async def test():
     print("rank of 'puzzle'", get_word_rank("puzzle"))
-    saved_puzzle = Puzzle.retrieve_last_saved("db/testpuzzles.db")
+    saved_puzzle = Puzzle.retrieve_last_saved()
     if saved_puzzle is None:
         print("fetching puzzle from nyt")
         puzzle = await Puzzle.fetch_from_nyt()
@@ -517,7 +551,7 @@ async def test():
         else:
             print("puzzle from db is",
                   datetime.now() - datetime.fromtimestamp(puzzle.timestamp), "old")
-    puzzle.persist("db/testpuzzles.db")
+    puzzle.persist()
     print("today's words from least to most common:")
     print(puzzle.get_unguessed_words())
     # answers = iter(puzzle.answers)
