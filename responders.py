@@ -14,7 +14,7 @@ from PIL import Image
 
 from typing import TYPE_CHECKING, Union, Callable
 if TYPE_CHECKING:
-    from MitchBot import MitchClient
+    from MitchBot import MitchBot
     from asyncio.futures import Future
     from discord.commands.context import ApplicationContext
 
@@ -79,7 +79,7 @@ class MessageResponder():
         return match
 
 
-def add_responses(bot: MitchClient):
+def add_responses(bot: MitchBot):
     bot.register_responder(
         MessageResponder(
             [r"\bbot\b", "mitchbot", "robot"],

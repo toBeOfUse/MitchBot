@@ -4,7 +4,8 @@ are in SQLite and bespoke trie database forms, respectively) as well as the nick
 in db/nicknames.json and poetry from text/poetry.txt. The RandomNoRepeats class
 defined here is also useful in general. Note: the paths within this file are
 constructed with the expectation that the CWD will be the root directory of the
-repository. Puzzles are persisted via code in the Puzzle class (not here.)
+repository. Puzzles are persisted via code in the SpellingBee and Letterboxed classes
+(not here.)
 """
 
 import json
@@ -27,7 +28,7 @@ try:
 except ImportError:
     import trieparse
 # to get this to work it helps to run this as a module with python -m db.queries
-from render import PuzzleRenderer
+from render import BeeRenderer
 
 words_db = sqlite3.connect("db/words.db")
 
@@ -386,10 +387,10 @@ def get_random_poem() -> str:
     return poetry_source.get_item()
 
 
-renderer_source = RandomNoRepeats(PuzzleRenderer.available_renderers, "puzzle_renderers")
+renderer_source = RandomNoRepeats(BeeRenderer.available_renderers, "puzzle_renderers")
 
 
-def get_random_renderer() -> PuzzleRenderer:
+def get_random_renderer() -> BeeRenderer:
     return renderer_source.get_item()
 
 

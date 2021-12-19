@@ -20,16 +20,16 @@ import discord
 from PIL import Image
 
 from db.queries import get_wiktionary_trie, get_random_renderer, get_word_rank
-from render import PuzzleRenderer
+from render import BeeRenderer
 from responders import MessageResponder
 from grammar import andify, copula, add_s, num
 from scheduler import repeatedly_schedule_task_for
 if TYPE_CHECKING:
-    from MitchBot import MitchClient
+    from MitchBot import MitchBot
     from discord.commands.context import ApplicationContext
 
 
-class Puzzle():
+class SpellingBee():
     """
     Instance of an NYT Spelling Bee puzzle. The puzzle consists of 6 outer letters
     and one central letter; players must use the central letter and any of the outer
@@ -41,12 +41,12 @@ class Puzzle():
     interact with discord Message objects.
 
     Attributes:
-        todays (Puzzle): static, always stores the last constructed Puzzle
-        yesterdays (Puzzle): static, always stores the second-to-last constructed Puzzle
+        todays (SpellingBee): static, always stores the last constructed SpellingBee
+        yesterdays (SpellingBee): static, always stores the second-to-last constructed SpellingBee
     """
 
-    todays: Puzzle = None
-    yesterdays: Puzzle = None
+    todays: SpellingBee = None
+    yesterdays: SpellingBee = None
 
     class GuessJudgement(Enum):
         wrong_word = 1
@@ -126,8 +126,8 @@ class Puzzle():
         self.image: Optional[bytes] = None
         self.message_id: int = -1
         self.db_path: Optional[str] = None
-        Puzzle.yesterdays = Puzzle.todays
-        Puzzle.todays = self
+        SpellingBee.yesterdays = SpellingBee.todays
+        SpellingBee.todays = self
 
     def __eq__(self, other):
         return self.center+self.outside == other.center+other.outside
@@ -205,7 +205,7 @@ class Puzzle():
                 result.append(word)
         return sorted(result, key=lambda w: get_word_rank(w))
 
-    async def render(self, renderer: PuzzleRenderer = None) -> bytes:
+    async def render(self, renderer: BeeRenderer = None) -> bytes:
         """Renders the puzzle to an image; returns the image file as bytes and caches
         it in the image instance variable. If you do not pass in an instance of a
         subclass of PuzzleRenderer, one will be provided for you via
@@ -237,7 +237,7 @@ class Puzzle():
         self.save()
 
     @classmethod
-    async def fetch_from_nyt(cls) -> "Puzzle":
+    async def fetch_from_nyt(cls) -> "SpellingBee":
         client = AsyncHTTPClient()
         response = await client.fetch("https://www.nytimes.com/puzzles/spelling-bee")
         html = response.body.decode("utf-8")
@@ -264,11 +264,11 @@ class Puzzle():
         already_gotten = False
         for word in words:
             guess_result = self.guess(word)
-            if Puzzle.GuessJudgement.good_word in guess_result:
+            if SpellingBee.GuessJudgement.good_word in guess_result:
                 points += 1
-            if Puzzle.GuessJudgement.pangram in guess_result:
+            if SpellingBee.GuessJudgement.pangram in guess_result:
                 pangram = True
-            if Puzzle.GuessJudgement.already_gotten in guess_result:
+            if SpellingBee.GuessJudgement.already_gotten in guess_result:
                 already_gotten = True
         if points > 0:
             reactions.append("👍")
@@ -329,7 +329,7 @@ class Puzzle():
         db.close()
 
     @classmethod
-    def retrieve_last_saved(cls, db_path: str = "db/puzzles.db") -> Optional["Puzzle"]:
+    def retrieve_last_saved(cls, db_path: str = "db/puzzles.db") -> Optional["SpellingBee"]:
         """Retrieves the most recently saved puzzle from the SQLite database. Note
         that the returned object is separate from the database record until/unless
         persist() is called to assign it to the same database again."""
@@ -362,17 +362,17 @@ class Puzzle():
 
 async def fetch_new_puzzle(quick_render=False):
     print("fetching puzzle from NYT...")
-    await Puzzle.fetch_from_nyt()
+    await SpellingBee.fetch_from_nyt()
     print("fetched. rendering graphic...")
-    await Puzzle.todays.render(
-        PuzzleRenderer.available_renderers[0] if quick_render else None
+    await SpellingBee.todays.render(
+        BeeRenderer.available_renderers[0] if quick_render else None
     )
     print("graphic rendered. saving today's puzzle in database")
-    Puzzle.todays.persist()
+    SpellingBee.todays.persist()
 
 
 async def post_new_puzzle(channel: discord.TextChannel):
-    current_puzzle = Puzzle.todays
+    current_puzzle = SpellingBee.todays
     message_text = random.choice(["Good morning",
                                   "Goedemorgen",
                                   "Bon matin",
@@ -388,8 +388,8 @@ async def post_new_puzzle(channel: discord.TextChannel):
         message_text += (
             " Words from Wiktionary that should count today that the NYT "
             f"fails to acknowledge include: {andify(alt_words_sample)}.")
-    if Puzzle.yesterdays is not None:
-        previous_words = Puzzle.yesterdays.get_unguessed_words()
+    if SpellingBee.yesterdays is not None:
+        previous_words = SpellingBee.yesterdays.get_unguessed_words()
         if len(previous_words) > 1:
             message_text += (
                 " The least common word that no one got for yesterday's "
@@ -411,9 +411,9 @@ async def post_new_puzzle(channel: discord.TextChannel):
 
 
 async def respond_to_guesses(message: discord.Message):
-    if Puzzle.todays is None:
+    if SpellingBee.todays is None:
         return
-    current_puzzle = Puzzle.todays
+    current_puzzle = SpellingBee.todays
     already_found = len(current_puzzle.gotten_words)
     reactions = current_puzzle.respond_to_guesses(message)
     for reaction in reactions:
@@ -447,13 +447,13 @@ async def respond_to_guesses(message: discord.Message):
         traceback.print_exc()
 
 
-def add_bee_functionality(bot: MitchClient):
+def add_bee_functionality(bot: MitchBot):
     try:
-        Puzzle.retrieve_last_saved()
+        SpellingBee.retrieve_last_saved()
     except:
         print("could not retrieve last puzzle from database; " +
               "puzzle functionality will stop until the next one is loaded")
-    Puzzle.todays.persist()
+    SpellingBee.todays.persist()
 
     et = ZoneInfo("America/New_York")
     fetch_new_puzzle_at = time(hour=6, minute=50, tzinfo=et)
@@ -494,7 +494,7 @@ def add_bee_functionality(bot: MitchClient):
     async def obtain_hint(ctx: ApplicationContext):
         "Spelling Bee hints or life advice (depending on the channel)"
         await ctx.respond(
-            Puzzle.todays.get_unguessed_hints().format_all_for_discord()
+            SpellingBee.todays.get_unguessed_hints().format_all_for_discord()
         )
 
     bot.register_hint(puzzle_channel_id, obtain_hint)
@@ -536,10 +536,10 @@ def add_bee_functionality(bot: MitchClient):
 
 async def test():
     print("rank of 'puzzle'", get_word_rank("puzzle"))
-    saved_puzzle = Puzzle.retrieve_last_saved()
+    saved_puzzle = SpellingBee.retrieve_last_saved()
     if saved_puzzle is None:
         print("fetching puzzle from nyt")
-        puzzle = await Puzzle.fetch_from_nyt()
+        puzzle = await SpellingBee.fetch_from_nyt()
     else:
         print("retrieved puzzle from db")
         puzzle = saved_puzzle
@@ -547,7 +547,7 @@ async def test():
             - datetime.fromtimestamp(puzzle.timestamp)
                 > timedelta(days=1)):
             print("puzzle from db was old, replacing it with current NYT one")
-            puzzle = await Puzzle.fetch_from_nyt()
+            puzzle = await SpellingBee.fetch_from_nyt()
         else:
             print("puzzle from db is",
                   datetime.now() - datetime.fromtimestamp(puzzle.timestamp), "old")

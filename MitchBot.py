@@ -13,13 +13,13 @@ from discord.commands.context import ApplicationContext
 # project files
 from responders import add_responses
 from scheduler import schedule_tasks
-from puzzle import add_bee_functionality
+from spellingbee import add_bee_functionality
 from letterboxed import add_letterboxed_functionality
 if TYPE_CHECKING:
     from responders import MessageResponder
 
 
-class MitchClient(discord.Bot):
+class MitchBot(discord.Bot):
     def __init__(self):
         super().__init__()
         # set in on_ready:

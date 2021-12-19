@@ -24,7 +24,7 @@ from scheduler import repeatedly_schedule_task_for, et
 from db.queries import get_wiktionary_trie, get_word_rank
 from grammar import andify, num, add_s, copula
 if TYPE_CHECKING:
-    from MitchBot import MitchClient
+    from MitchBot import MitchBot
 
 alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 assert len(alphabet) == 26
@@ -55,10 +55,6 @@ class LetterBoxedWord:
 
     def __hash__(self) -> int:
         return hash(self.word)
-
-    @property
-    def cmp_key(self):
-        return (self.first_letter, -self.unique_letters, self.word[1:])
 
     def __repr__(self):
         return self.word
@@ -605,7 +601,7 @@ async def letterboxed_react(message: discord.Message):
         await message.add_reaction(reaction)
 
 
-def add_letterboxed_functionality(client: MitchClient):
+def add_letterboxed_functionality(client: MitchBot):
     post_new_letterboxed_at = time(hour=12, tzinfo=et)
     if not client.test_mode:
         letterboxed_thread_id = 897476378709065779  # production

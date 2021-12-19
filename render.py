@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from puzzle import Puzzle
+    from spellingbee import SpellingBee
 
 from os import PathLike
 from pathlib import Path
@@ -20,19 +20,19 @@ from images.svg_hexagon_generator import make_hexagon
 from cairosvg import svg2png
 
 
-class PuzzleRenderer(metaclass=abc.ABCMeta):
+class BeeRenderer(metaclass=abc.ABCMeta):
     """Base class for subclasses to override; they should implement __init__, render,
     and __repr__, on principle and so they work with instances of RandomNoRepeats.
     available_renderers should be populated with instances of subclasses to make them
-    chooseable by Puzzle.render()."""
-    available_renderers: list[PuzzleRenderer] = []
+    chooseable by SpellingBee.render()."""
+    available_renderers: list[BeeRenderer] = []
 
     @abc.abstractmethod
     def __init__(self):
         pass
 
     @abc.abstractmethod
-    async def render(self, puzzle: Puzzle) -> bytes:
+    async def render(self, puzzle: SpellingBee) -> bytes:
         pass
 
     @abc.abstractmethod
@@ -40,7 +40,7 @@ class PuzzleRenderer(metaclass=abc.ABCMeta):
         pass
 
 
-class SVGTemplateRenderer(PuzzleRenderer):
+class SVGTemplateRenderer(BeeRenderer):
     def __init__(self, template_path: PathLike):
         self.template_path = template_path
         with open(template_path) as base_file:
@@ -99,7 +99,7 @@ class SVGTextTemplateRenderer(SVGTemplateRenderer):
             return placeholder_children
         return []
 
-    async def render(self, puzzle: Puzzle, output_width: int = 1200) -> bytes:
+    async def render(self, puzzle: SpellingBee, output_width: int = 1200) -> bytes:
         """Finds placeholder <text> nodes (those with "$L" or "$C" as their content)
         in the SVG file passed to the constructor and replaces that content with the
         letters from the puzzle. If multiple placeholder <text> nodes are in a
@@ -125,7 +125,7 @@ class SVGImageTemplateRenderer(SVGTemplateRenderer):
         super().__init__(template_path)
         self.alphabet_path = alphabet_path
 
-    async def render(self, puzzle: Puzzle, output_width: int = 1200) -> bytes:
+    async def render(self, puzzle: SpellingBee, output_width: int = 1200) -> bytes:
         center_placeholder_pixel = (
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ" +
             "AAAADUlEQVR42mP8/5fhPwAH/AL9Ow9X5gAAAABJRU5ErkJggg=="
@@ -150,7 +150,7 @@ class SVGImageTemplateRenderer(SVGTemplateRenderer):
         return svg2png(base_svg, output_width=output_width)
 
 
-class GIFTemplateRenderer(PuzzleRenderer):
+class GIFTemplateRenderer(BeeRenderer):
     def __init__(
             self, first_frame_file: str, gif_file: str,
             center_coords: tuple[int, int],
@@ -165,7 +165,7 @@ class GIFTemplateRenderer(PuzzleRenderer):
     def __repr__(self):
         return f"GIFTemplateRenderer for {self.gif_file}"
 
-    async def render(self, puzzle: Puzzle) -> bytes:
+    async def render(self, puzzle: SpellingBee) -> bytes:
         base = Image.open(self.first_frame_file)
         palette = base.palette
         darkest_available_color = (255, 255, 255)
@@ -202,11 +202,11 @@ class GIFTemplateRenderer(PuzzleRenderer):
         return gifsicle_output[0]
 
 
-class BlenderRenderer(PuzzleRenderer):
+class BlenderRenderer(BeeRenderer):
     def __init__(self, blender_file_path: PathLike):
         self.blender_file_path = blender_file_path
 
-    async def render(self, puzzle: Puzzle):
+    async def render(self, puzzle: SpellingBee):
         letters = puzzle.center+("".join(puzzle.outside))
         output_path = Path.cwd()/("images/temp/"+letters)
         blender = await asyncio.create_subprocess_exec(
@@ -235,7 +235,7 @@ class BlenderRenderer(PuzzleRenderer):
         return f"BlenderRenderer for {self.blender_file_path}"
 
 
-class LetterSwapRenderer(PuzzleRenderer):
+class LetterSwapRenderer(BeeRenderer):
     def __init__(
             self,
             base_image_path: PathLike,
@@ -300,7 +300,7 @@ class LetterSwapRenderer(PuzzleRenderer):
     def open_frame(self, frame_path: PathLike) -> Image.Image:
         return self.resize_frame(Image.open(frame_path))
 
-    async def render(self, puzzle: Puzzle):
+    async def render(self, puzzle: SpellingBee):
         base_image = Image.open(self.base_image_path)
         frame_paths = sorted(
             list(Path(self.frames_path).glob("*")),
@@ -367,7 +367,7 @@ class LetterSwapRenderer(PuzzleRenderer):
             return result
 
 
-class AnimationCompositorRenderer(PuzzleRenderer):
+class AnimationCompositorRenderer(BeeRenderer):
     def __init__(
             self, frames_path: PathLike, top_layer_path: PathLike, base_framerate: int,
             ffmpeg_filter: str):
@@ -379,7 +379,7 @@ class AnimationCompositorRenderer(PuzzleRenderer):
     def __repr__(self):
         return f"Animation Compositor Renderer for frames in {self.frames_path}"
 
-    async def render(self, puzzle: Puzzle):
+    async def render(self, puzzle: SpellingBee):
         overlay = Image.open(BytesIO(await SVGTextTemplateRenderer(
             self.top_layer_path).render(puzzle)), formats=("PNG",))
         temp_path = Path(f"images/temp/ACR/{''.join([puzzle.center]+puzzle.outside)}")
@@ -414,21 +414,21 @@ class AnimationCompositorRenderer(PuzzleRenderer):
 
 
 for path in Path("images/").glob("puzzle_template_*.svg"):
-    PuzzleRenderer.available_renderers.append(SVGTextTemplateRenderer(path))
+    BeeRenderer.available_renderers.append(SVGTextTemplateRenderer(path))
 
-PuzzleRenderer.available_renderers.append(SVGImageTemplateRenderer(
+BeeRenderer.available_renderers.append(SVGImageTemplateRenderer(
     Path("images", "image_puzzle_template_1.svg"), Path("fonts", "pencil")))
 
 for path in Path("images/").glob("blender_template_*.blend"):
-    PuzzleRenderer.available_renderers.append(BlenderRenderer(path))
+    BeeRenderer.available_renderers.append(BlenderRenderer(path))
 
-PuzzleRenderer.available_renderers.append(
+BeeRenderer.available_renderers.append(
     GIFTemplateRenderer(
         Path("images", "spinf1.gif"), Path("images", "spin.gif"),
         (300, 300), 90
     ))
 
-PuzzleRenderer.available_renderers.append(
+BeeRenderer.available_renderers.append(
     LetterSwapRenderer(
         "images/trainstationbase.png",
         "images/trainstationpalette.png",
@@ -438,7 +438,7 @@ PuzzleRenderer.available_renderers.append(
     )
 )
 
-PuzzleRenderer.available_renderers.append(
+BeeRenderer.available_renderers.append(
     AnimationCompositorRenderer(
         "images/animations/clock/", "images/clock_overlay.svg", 24,
         "[0:v]setpts=(PTS-STARTPTS)+(trunc((N+5)/6)*(0.75/TB))," +
@@ -446,8 +446,8 @@ PuzzleRenderer.available_renderers.append(
 
 
 async def test():
-    from puzzle import Puzzle
-    rs = PuzzleRenderer.available_renderers
+    from spellingbee import SpellingBee
+    rs = BeeRenderer.available_renderers
     letters = random.sample(["B", "C", "D", "E", "F", "G"], 6)
     if len(sys.argv) > 1:
         print(f"looking for renderers with {sys.argv[1]} in name")
@@ -458,7 +458,7 @@ async def test():
             if sys.argv[1].lower() not in str(r).lower():
                 continue
         start = default_timer()
-        test_puzzle = Puzzle(-1, "A", letters, [], [])
+        test_puzzle = SpellingBee(-1, "A", letters, [], [])
         render = await r.render(test_puzzle)
         type = test_puzzle.image_file_type
         renderer_name_slug = str(r).replace(" ", "_").replace("\\", "-").replace("/", "-")

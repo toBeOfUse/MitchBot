@@ -5,7 +5,7 @@ import inspect
 import random
 from typing import Callable, TYPE_CHECKING
 if TYPE_CHECKING:
-    from MitchBot import MitchClient
+    from MitchBot import MitchBot
 
 from zoneinfo import ZoneInfo
 
@@ -51,7 +51,7 @@ async def repeatedly_schedule_task_for(time_of_day: time, task: Callable, name: 
     asyncio.create_task(repeatedly_schedule_task_for(time_of_day, task, name))
 
 
-def schedule_tasks(client: MitchClient):
+def schedule_tasks(client: MitchBot):
     # poetry scheduling:
     poem_time = time(hour=2, tzinfo=et)
     if client.test_mode and False:

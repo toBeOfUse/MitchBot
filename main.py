@@ -5,7 +5,7 @@ import logging
 from tornado.ioloop import IOLoop
 
 # project files
-import MitchBot
+from MitchBot import MitchBot
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -15,7 +15,7 @@ logger.addHandler(handler)
 
 
 async def main():
-    discord_client = MitchBot.MitchClient()
+    discord_client = MitchBot()
     with open('login_token.txt') as token_file:
         await discord_client.login(token_file.read())
     await discord_client.connect()
