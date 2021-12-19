@@ -453,6 +453,7 @@ def add_bee_functionality(bot: MitchClient):
     except:
         print("could not retrieve last puzzle from database; " +
               "puzzle functionality will stop until the next one is loaded")
+    Puzzle.todays.persist()
 
     et = ZoneInfo("America/New_York")
     fetch_new_puzzle_at = time(hour=6, minute=50, tzinfo=et)
