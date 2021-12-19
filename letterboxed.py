@@ -347,6 +347,8 @@ class LetterBoxed:
         for pair in letter_pairs:
             groups = [soup.find(id="letter-"+x) for x in pair]
             circles = [x.find("circle") for x in groups]
+            for c in circles:
+                c["style"] = c["style"].replace("stroke:#000000", "stroke:#f8aa9e")
             points = [{"x": float(x["cx"]), "y": float(x["cy"])} for x in circles]
             line = soup.new_tag(
                 "line", x1=points[0]["x"],
