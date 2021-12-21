@@ -69,6 +69,20 @@ def get_random_strategy() -> str:
         return random.choice(strategy_file.read().split("\n"))
 
 
+def get_next_mail() -> Optional[str]:
+    with open("db/mail.json", encoding="utf-8", mode="r+") as mail_file:
+        mailbag = json.load(mail_file)
+        assert all("text" in x and "retrieved" in x for x in mailbag)
+        next_mail = next((x for x in mailbag if not x["retrieved"]), None)
+        if next_mail is not None:
+            next_mail["retrieved"] = True
+            mail_file.seek(0)
+            json.dump(mailbag, mail_file)
+            mail_file.truncate()
+            return next_mail["text"]
+        return None
+
+
 class TrieNode():
     """
     Stores a node in a trie that supports latin characters a-z (sorry, more

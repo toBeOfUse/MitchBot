@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 from zoneinfo import ZoneInfo
 
-from db.queries import get_random_city_timezone, get_random_poem
+from db.queries import get_random_city_timezone, get_random_poem, get_next_mail
 
 et = ZoneInfo("America/New_York")
 
@@ -55,14 +55,13 @@ def schedule_tasks(client: MitchBot):
     # poetry scheduling:
     poem_time = time(hour=2, tzinfo=et)
     if client.test_mode and False:
-        poem_time = (datetime.now(tz=timezone.utc)+timedelta(seconds=15)
-                     ).time().replace(tzinfo=timezone.utc)  # test
+        poem_time = (datetime.now(tz=et)+timedelta(seconds=5)).time()  # test
 
     async def send_poem():
         poetry_channel_id = (
             678337807764422691 if not client.test_mode else 888301952067325952
         )
-
+        next_mail = get_next_mail()
         a_city, a_zone = get_random_city_timezone()
         a_time = datetime.now().astimezone(ZoneInfo(a_zone))
         a_body = random.choice(
@@ -76,10 +75,16 @@ def schedule_tasks(client: MitchBot):
              "esograde", "altigrade", "bizarrograde", "essentiagrade"])
         prelude = ("Good evening. " +
                    f"It's {int(a_time.strftime('%I'))}:{a_time.strftime('%M %p')} " +
-                   f"in {a_city}. {a_body} is in {a_state}. Tonight's top story is:")
+                   f"in {a_city}. {a_body} is in {a_state}. ")
+        if next_mail is None:
+            prelude += "Tonight's top story is:"
+            body = get_random_poem()
+        else:
+            prelude += "Tonight's postcard from the audience reads:"
+            body = next_mail
+        body = "\n".join("> "+x for x in body.split("\n"))
         await client.get_channel(poetry_channel_id).send(prelude)
-        poem = "\n".join("> "+x for x in get_random_poem().split("\n"))
-        await client.get_channel(poetry_channel_id).send(poem)
+        await client.get_channel(poetry_channel_id).send(body)
     asyncio.create_task(repeatedly_schedule_task_for(poem_time, send_poem))
 
 
