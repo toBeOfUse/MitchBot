@@ -4,6 +4,8 @@ from datetime import time, datetime, timedelta, timezone
 import inspect
 import random
 from typing import Callable, TYPE_CHECKING
+
+import discord
 if TYPE_CHECKING:
     from MitchBot import MitchBot
 
@@ -54,7 +56,7 @@ async def repeatedly_schedule_task_for(time_of_day: time, task: Callable, name: 
 def schedule_tasks(client: MitchBot):
     # poetry scheduling:
     poem_time = time(hour=2, tzinfo=et)
-    if client.test_mode and False:
+    if client.test_mode and True:
         poem_time = (datetime.now(tz=et)+timedelta(seconds=5)).time()  # test
 
     async def send_poem():
@@ -79,12 +81,18 @@ def schedule_tasks(client: MitchBot):
         if next_mail is None:
             prelude += "Tonight's top story is:"
             body = get_random_poem()
+            embed = None
         else:
             prelude += "Tonight's postcard from the audience reads:"
-            body = next_mail
-        body = "\n".join("> "+x for x in body.split("\n"))
-        await client.get_channel(poetry_channel_id).send(prelude)
-        await client.get_channel(poetry_channel_id).send(body)
+            body = ""
+            embed = discord.Embed(
+                title="MBPS (MitchBot Postal Service)", url="https://mitchbot.cloud/mail/",
+                description=next_mail)
+            embed.set_thumbnail(url="https://mitchbot.cloud/mail/otherimages/stampthumbnail.png")
+        await client.get_channel(poetry_channel_id).send(prelude, embed=embed)
+        if body:
+            body = "\n".join("> "+x for x in body.split("\n"))
+            await client.get_channel(poetry_channel_id).send(body)
     asyncio.create_task(repeatedly_schedule_task_for(poem_time, send_poem))
 
 
