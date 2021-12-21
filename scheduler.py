@@ -83,12 +83,14 @@ def schedule_tasks(client: MitchBot):
             body = get_random_poem()
             embed = None
         else:
-            prelude += "Tonight's postcard from the audience reads:"
+            prelude += "Tonight's item from the audience reads:"
             body = ""
-            embed = discord.Embed(
-                title="MBPS (MitchBot Postal Service)", url="https://mitchbot.cloud/mail/",
-                description=next_mail)
+            embed = discord.Embed(url="https://mitchbot.cloud/mail/", description=next_mail)
             embed.set_thumbnail(url="https://mitchbot.cloud/mail/otherimages/stampthumbnail.png")
+            embed.set_author(
+                name="Send us a postcard ✨", url="https://mitchbot.cloud/mail/",
+                icon_url="https://mitchbot.cloud/mail/otherimages/cursor.png"
+            )
         await client.get_channel(poetry_channel_id).send(prelude, embed=embed)
         if body:
             body = "\n".join("> "+x for x in body.split("\n"))
