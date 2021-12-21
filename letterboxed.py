@@ -581,11 +581,9 @@ async def post_letterboxed(guild: discord.Guild, thread_id: int):
     await target_thread.join()
     message = ("Good noon ~ " +
                f"Today's puzzle is a par {new_boxed.par}. " +
-               new_boxed.get_solutions_quantity_statement() +
-               f" {new_boxed.percentage_of_words_in_wiktionary()}% " +
-               "of accepted answers have an English-language entry in Wiktionary.")
+               new_boxed.get_solutions_quantity_statement())
     if len(mystery_words) > 0:
-        message += f" Some unfound words from yesterday were: {andify(mystery_words)}."
+        message += f" Some unfound words from yesterday were {andify(mystery_words)}."
     await target_thread.send(
         content=message,
         file=discord.File(BytesIO(new_boxed_image), "letterboxed.png")
