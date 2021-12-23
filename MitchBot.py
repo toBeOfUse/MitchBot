@@ -73,7 +73,7 @@ class MitchBot(discord.Bot):
             if response.react_to(message):
                 responded = True
 
-        if not responded and self.user.mentioned_in(message) and not message.mention_everyone:
+        if not responded and MessageResponder.mentions_bot(message):
             response = random.choice(
                 ["Completely correct", "I'm afraid not", "I'm not too sure",
                  "No-one has said that before", "Only on Tuesdays",

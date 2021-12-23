@@ -48,6 +48,12 @@ class MessageResponder():
         self.responder = responder
         self.require_mention = require_mention
 
+    @staticmethod
+    def mentions_bot(message: discord.Message):
+        return not message.mention_everyone and (
+            message.guild.me.mentioned_in(message)
+            or len(set(message.guild.me.roles).intersection(message.role_mentions)) > 0)
+
     def react_to(self, message: discord.Message):
         '''
         Reacts to messages by executing a function if the certain condition is
@@ -56,9 +62,8 @@ class MessageResponder():
         if message.author.bot:
             return False
         match = False
-        if self.require_mention:
-            if (not message.guild.me.mentioned_in(message)) or message.mention_everyone:
-                return False
+        if self.require_mention and not MessageResponder.mentions_bot(message):
+            return False
         if isinstance(self.condition, str):
             if re.search(self.condition, message.content, re.IGNORECASE):
                 match = True
