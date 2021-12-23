@@ -487,7 +487,7 @@ def add_bee_functionality(bot: MitchBot):
                 # remove old reactions
                 for reaction in after.reactions:
                     if reaction.me:
-                        await reaction.remove(bot)
+                        await reaction.remove(bot.user)
                 # replace with new ones
                 await respond_to_guesses(after)
 
