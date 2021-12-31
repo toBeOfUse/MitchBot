@@ -451,4 +451,4 @@ if __name__ == "__main__":
             assert element in subsequence, "subsequence draws from all available elements equally"
     print("next item in mailbag:")
     print(get_next_mail(False))
-    print("tests pased")
+    print("tests passed")
