@@ -69,16 +69,17 @@ def get_random_strategy() -> str:
         return random.choice(strategy_file.read().split("\n"))
 
 
-def get_next_mail() -> Optional[str]:
+def get_next_mail(mark_retrieved=True) -> Optional[str]:
     with open("db/mail.json", encoding="utf-8", mode="r+") as mail_file:
         mailbag = json.load(mail_file)
         assert all("text" in x and "retrieved" in x for x in mailbag)
         next_mail = next((x for x in mailbag if not x["retrieved"]), None)
         if next_mail is not None:
-            next_mail["retrieved"] = True
-            mail_file.seek(0)
-            json.dump(mailbag, mail_file)
-            mail_file.truncate()
+            if mark_retrieved:
+                next_mail["retrieved"] = True
+                mail_file.seek(0)
+                json.dump(mailbag, mail_file)
+                mail_file.truncate()
             return next_mail["text"]
         return None
 
@@ -448,4 +449,6 @@ if __name__ == "__main__":
         assert subsequence[1] != subsequence[2], "no same result twice in a row"
         for element in ("heads", "tails", "not heads"):
             assert element in subsequence, "subsequence draws from all available elements equally"
+    print("next item in mailbag:")
+    print(get_next_mail(False))
     print("tests pased")
