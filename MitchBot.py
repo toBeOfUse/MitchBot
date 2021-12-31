@@ -11,12 +11,10 @@ from PIL import Image
 from discord.commands.context import ApplicationContext
 
 # project files
-from responders import add_responses
+from responders import add_responses, MessageResponder
 from scheduler import schedule_tasks
 from spellingbee import add_bee_functionality
 from letterboxed import add_letterboxed_functionality
-if TYPE_CHECKING:
-    from responders import MessageResponder
 
 
 class MitchBot(discord.Bot):
