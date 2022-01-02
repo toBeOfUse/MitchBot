@@ -80,11 +80,15 @@ def schedule_tasks(client: MitchBot):
                    f"in {a_city}. {a_body} is in {a_state}. ")
         if next_mail is None:
             prelude += "Tonight's top story is:"
-            body = get_random_poem()
+            poem = get_random_poem()
+            body = "\n".join("> "+x for x in poem.split("\n"))
             embed = None
         else:
             prelude += "Tonight's item from the audience reads:"
-            body = ""
+            if get_next_mail(False) is None:
+                body = "And that's the last piece of mail we've gotten so far."
+            else:
+                body = ""
             embed = discord.Embed(url="https://mitchbot.cloud/mail/", description=next_mail)
             embed.set_thumbnail(url="https://mitchbot.cloud/mail/otherimages/stampthumbnail.png")
             embed.set_author(
@@ -93,7 +97,6 @@ def schedule_tasks(client: MitchBot):
             )
         await client.get_channel(poetry_channel_id).send(prelude, embed=embed)
         if body:
-            body = "\n".join("> "+x for x in body.split("\n"))
             await client.get_channel(poetry_channel_id).send(body)
     asyncio.create_task(repeatedly_schedule_task_for(poem_time, send_poem))
 
