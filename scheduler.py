@@ -1,6 +1,6 @@
 from __future__ import annotations
 import asyncio
-from datetime import time, datetime, timedelta, timezone
+from datetime import date, time, datetime, timedelta, timezone
 import inspect
 import random
 from typing import Callable, TYPE_CHECKING
@@ -55,13 +55,16 @@ async def repeatedly_schedule_task_for(time_of_day: time, task: Callable, name: 
 
 def schedule_tasks(client: MitchBot):
     async def wordle_joke():
+        start_date = date(2022, 1, 1)
+        start_number = 196
+        wordle_number = start_number + (date.today() - start_date).days
         wordle_thread_id = 928243083479490561
         guild = client.get_guild(678337806510063626)
         available_threads = await guild.active_threads()
         target_thread = next(x for x in available_threads if x.id == wordle_thread_id)
         await target_thread.join()
-        await target_thread.send("Wordle 201 1/6\n\n🟩🟩🟩🟩🟩")
-    wordle_time = time(hour=0, tzinfo=et)
+        await target_thread.send(f"Wordle {wordle_number} 1/6\n\n🟩🟩🟩🟩🟩")
+    wordle_time = time(hour=0, minute=0, second=5, tzinfo=et)
     asyncio.create_task(repeatedly_schedule_task_for(wordle_time, wordle_joke))
 
     # poetry scheduling:
