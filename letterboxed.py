@@ -626,7 +626,7 @@ def add_letterboxed_functionality(client: MitchBot):
             hint = current_letterboxed.render_hint()
             if hint is not None:
                 await context.respond(
-                    content="Use this to create a word :D",
+                    content="Fill in the missing lines to make a Word.",
                     file=discord.File(
                         fp=BytesIO(hint),
                         filename="aletterboxedhint.png"
