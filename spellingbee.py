@@ -177,7 +177,7 @@ class SpellingBee():
         Returns the words that use the required letters and are english words
         according to Wiktionary (according to data obtained by
         https://github.com/tatuylonen/wiktextract) but aren't in the official answers
-        list, sorted from most to least common (they... may all be quite uncommon)
+        list, sorted from longest to shortest
         """
         start = timer()
         wiktionary_words = get_wiktionary_trie()
@@ -203,7 +203,7 @@ class SpellingBee():
                     break
             else:
                 result.append(word)
-        return sorted(result, key=lambda w: get_word_rank(w))
+        return sorted(result, key=len, reverse=True)
 
     async def render(self, renderer: BeeRenderer = None) -> bytes:
         """Renders the puzzle to an image; returns the image file as bytes and caches
@@ -463,7 +463,7 @@ def add_bee_functionality(bot: MitchBot):
         quick_render = False
     else:
         puzzle_channel_id = 888301952067325952  # test
-        if False:
+        if True:
             # in case we want to test puzzle posting directly
             fetch_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=10)).time()
             post_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=20)).time()
