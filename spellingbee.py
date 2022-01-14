@@ -1,378 +1,41 @@
 from __future__ import annotations
 import asyncio
 from io import BytesIO
-import json
-from os import PathLike
-import re
-import sqlite3
-from typing import Optional, TYPE_CHECKING
+from tokenize import Single
+from typing import TYPE_CHECKING, Optional
 import traceback
 from datetime import datetime, time, timedelta
 import random
-from timeit import default_timer as timer
-from enum import Enum
-from collections import defaultdict
+from urllib.error import HTTPError
 from zoneinfo import ZoneInfo
 
-from tornado.httpclient import AsyncHTTPClient
 from tornado.ioloop import IOLoop
 import discord
 from PIL import Image
 
-from db.queries import get_wiktionary_trie, get_random_renderer, get_word_rank
-from render import BeeRenderer
+from bee_engine import SpellingBee, SingleSessionSpellingBee, BeeRenderer
+
 from responders import MessageResponder
-from grammar import andify, copula, add_s, num
+from grammar import andify
 from scheduler import repeatedly_schedule_task_for
 if TYPE_CHECKING:
     from MitchBot import MitchBot
     from discord.commands.context import ApplicationContext
 
 
-class SpellingBee():
-    """
-    Instance of an NYT Spelling Bee puzzle. The puzzle consists of 6 outer letters
-    and one central letter; players must use the central letter and any of the outer
-    letters to create words that are at least 4 letters long. At least one "pangram,"
-    a word that uses every letter, can be formed. This class stores the necessary
-    data to represent the puzzle and judge answers, has serialization mechanisms to
-    save the puzzle and the answers that have come in so far in a simple SQLite
-    database, can render itself to a PNG, and includes a functions to allow it to
-    interact with discord Message objects.
-
-    Attributes:
-        todays (SpellingBee): static, always stores the last constructed SpellingBee
-        yesterdays (SpellingBee): static, always stores the second-to-last constructed SpellingBee
-    """
-
-    todays: SpellingBee = None
-    yesterdays: SpellingBee = None
-
-    class GuessJudgement(Enum):
-        wrong_word = 1
-        good_word = 2
-        pangram = 3
-        already_gotten = 4
-
-    class HintTable:
-        def __init__(self, words: list[str]):
-            words = [w.lower() for w in words]
-            self.empty: bool = len(words) == 0
-            self.one_letters: dict[dict[int, int]] = defaultdict(lambda: defaultdict(lambda: 0))
-            self.two_letters: dict[int] = defaultdict(lambda: 0)
-            self.word_lengths: set[int] = set()
-            self.pangram_count = 0
-            for word in words:
-                self.word_lengths.add(len(word))
-                self.one_letters[word[0]][len(word)] += 1
-                self.two_letters[word[0:2]] += 1
-                if len(set(word)) == 7:
-                    self.pangram_count += 1
-
-        def format_table(self) -> str:
-            if self.empty:
-                return "There are no remaining words."
-            f = "   "+" ".join(f"{x:<2}" for x in sorted(list(self.word_lengths)))+" Σ \n"
-            sorted_lengths = sorted(list(self.word_lengths))
-            sums_by_length = {x: 0 for x in sorted_lengths}
-            for letter, counts in sorted(
-                    list(self.one_letters.items()), key=lambda i: i[0]):
-                f += f"{letter.upper()}  " + " ".join(
-                    (f"{counts[c]:<2}" if counts[c] != 0 else "- ") for c in sorted_lengths)
-                f += f" {sum(counts.values()):<2}\n"
-                for length, count in counts.items():
-                    sums_by_length[length] += count
-            f += "Σ  "+" ".join(f"{c:<2}" for c in sums_by_length.values())
-            f += f" {sum(sums_by_length.values())}"
-            return f
-
-        def format_two_letters(self) -> str:
-            sorted_2l = sorted(
-                list(self.two_letters.items()), key=lambda x: x[0]
-            )
-            return ", ".join(
-                f"{l[0].upper()}{l[1]}: {c}" for (l, c) in sorted_2l)
-
-        def format_pangram_count(self) -> str:
-            c = self.pangram_count
-            return f"There {copula(c)} {num(c)} remaining {add_s('pangram', c)}."
-
-        def format_all_for_discord(self) -> str:
-            result = f"```\n{self.format_table()}\n```\n"
-            result += self.format_two_letters()
-            result += "\n"
-            result += self.format_pangram_count()
-            return result
-
-    def __init__(
-            self,
-            originally_loaded: int,
-            center: str,
-            outside: list[str],
-            pangrams: list[str],
-            answers: list[str],
-            gotten_words: set = set()):
-        self.timestamp = originally_loaded
-        self.center = center.upper()
-        self.outside = [l.upper() for l in outside]
-        self.pangrams = set(p.lower() for p in pangrams)
-        self.answers = set(a.lower() for a in answers)
-        if (all(l in [self.center]+self.outside for l in "ACAB") and
-                self.center in "ACAB"):
-            self.answers.add("acab")
-        for word in self.pangrams:
-            self.answers.add(word)  # shouldn't be necessary but just in case
-        self.gotten_words = set(w.lower() for w in gotten_words)
-        self.image: Optional[bytes] = None
-        self.message_id: int = -1
-        self.db_path: Optional[str] = None
-        SpellingBee.yesterdays = SpellingBee.todays
-        SpellingBee.todays = self
-
-    def __eq__(self, other):
-        return self.center+self.outside == other.center+other.outside
-
-    @property
-    def percentage_complete(self):
-        return round(len(self.gotten_words) / len(self.answers) * 100, 1)
-
-    def does_word_count(self, word: str) -> bool:
-        return word.lower() in self.answers
-
-    def is_pangram(self, word: str) -> bool:
-        return word.lower() in self.pangrams
-
-    def guess(self, word: str) -> set[GuessJudgement]:
-        """
-        determines whether a word counts for a point and/or is a pangram and/or has
-        already been gotten. uses the GuessJudgement enum inner class.
-        """
-        result = set()
-        w = word.lower()
-        if self.does_word_count(w):
-            result.add(self.GuessJudgement.good_word)
-            if self.is_pangram(w):
-                result.add(self.GuessJudgement.pangram)
-            if w in self.gotten_words:
-                result.add(self.GuessJudgement.already_gotten)
-            self.gotten_words.add(w)
-            self.save()
-        else:
-            result.add(self.GuessJudgement.wrong_word)
-        return result
-
-    def get_unguessed_words(self, sort=True) -> list[str]:
-        """returns the heretofore unguessed words in a list sorted from the least to
-        the most common words."""
-        unguessed = list(self.answers - self.gotten_words)
-        if sort:
-            unguessed.sort(key=lambda w: get_word_rank(w), reverse=True)
-        return unguessed
-
-    def get_unguessed_hints(self) -> HintTable:
-        return self.HintTable(self.get_unguessed_words(sort=False))
-
-    def get_wiktionary_alternative_answers(self) -> list[str]:
-        """
-        Returns the words that use the required letters and are english words
-        according to Wiktionary (according to data obtained by
-        https://github.com/tatuylonen/wiktextract) but aren't in the official answers
-        list, sorted from longest to shortest
-        """
-        start = timer()
-        wiktionary_words = get_wiktionary_trie()
-        all_letters = [x.lower() for x in self.outside+[self.center]]
-        candidates = wiktionary_words.search_words_by_letters(all_letters)
-        end = timer()
-        print("obtaining wiktionary words took", round((end-start)*1000, 2), "ms")
-
-        result = []
-        for word in candidates:
-            # i probably filtered the dataset for some of these characteristics at
-            # some point but i forget which ones so whatever better safe than sorry
-            if self.center not in word.upper():
-                continue
-            if len(word) < 4:
-                continue
-            if word.lower() in self.answers:
-                continue
-            if word.lower() != word:
-                continue
-            for character in word:
-                if character.upper() not in (self.outside + [self.center]):
-                    break
-            else:
-                result.append(word)
-        return sorted(result, key=len, reverse=True)
-
-    async def render(self, renderer: BeeRenderer = None) -> bytes:
-        """Renders the puzzle to an image; returns the image file as bytes and caches
-        it in the image instance variable. If you do not pass in an instance of a
-        subclass of PuzzleRenderer, one will be provided for you via
-        get_random_renderer from queries.py."""
-        if renderer is None:
-            renderer = get_random_renderer()
-        self.image = await renderer.render(self)
-        return self.image
-
-    @property
-    def image_file_type(self) -> Optional[str]:
-        if self.image is None:
-            return None
-        elif self.image[0:4] == b"\x89PNG":
-            return "png"
-        elif self.image[0:3] == b"GIF":
-            return "gif"
-        elif self.image[0:2] == b"\xff\xd8":
-            return "jpg"
-
-    def associate_with_message(self, message: discord.Message):
-        """Used to give a puzzle a Discord message ID that can be saved in the
-        database and retrieved with the puzzle so that Discord client code can
-        retrieve that message and update it with puzzle status information whenever
-        it wants. Technically violates separation of concerns, and the Discord
-        API-oriented code should persist this data itself, but oh well it's just one
-        integer"""
-        self.message_id = message.id
-        self.save()
-
-    @classmethod
-    async def fetch_from_nyt(cls) -> "SpellingBee":
-        client = AsyncHTTPClient()
-        response = await client.fetch("https://www.nytimes.com/puzzles/spelling-bee")
-        html = response.body.decode("utf-8")
-        game_data = re.search("window.gameData = (.*?)</script>", html)
-        if game_data:
-            game = json.loads(game_data.group(1))["today"]
-            return cls(
-                int(datetime.now().timestamp()),
-                game["centerLetter"],
-                game["outerLetters"],
-                game["pangrams"],
-                game["answers"])
-
-    def respond_to_guesses(self, message: discord.Message) -> list[str]:
-        """
-        Discord bot-specific function for awarding points in the form of reactions;
-        returns a list of emojis.
-        """
-        num_emojis = ["0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"]
-        reactions = []
-        words = set(re.sub("\W", " ", message.content).split())
-        points = 0
-        pangram = False
-        already_gotten = False
-        for word in words:
-            guess_result = self.guess(word)
-            if SpellingBee.GuessJudgement.good_word in guess_result:
-                points += 1
-            if SpellingBee.GuessJudgement.pangram in guess_result:
-                pangram = True
-            if SpellingBee.GuessJudgement.already_gotten in guess_result:
-                already_gotten = True
-        if points > 0:
-            reactions.append("👍")
-            if points > 1:
-                for num_char in str(points):
-                    reactions.append(num_emojis[int(num_char)])
-        if pangram:
-            reactions.append("🍳")
-        if already_gotten:
-            reactions.append("🤝")
-        return reactions
-
-    def persist(self, db_path: PathLike = "db/puzzles.db"):
-        """Sets a puzzle object up to be saved in the given database. This method
-        must be called on an object for it to persist and be returnable by
-        retrieve_last_saved. After it is called, the puzzle object will automatically
-        update its record in the database whenever its state changes."""
-        self.db_path = db_path
-        self.save()
-
-    @classmethod
-    def get_connection(self, db_path: PathLike) -> Optional[sqlite3.Connection]:
-        """Connects to the database, ensures the spelling_bee table exists with the
-        correct schema, and returns the connection."""
-        latest_version = 1
-        if db_path is None:
-            return None
-        db = sqlite3.connect(db_path)
-        cur = db.cursor()
-        cur.execute("""create table if not exists spelling_bee
-            (timestamp integer primary key, message_id integer, center text, outside text,
-            pangrams text, answers text, gotten_words text);""")
-        cur.execute("""create index if not exists chrono on spelling_bee (timestamp desc);""")
-
-        current_version = cur.execute("pragma user_version").fetchone()[0]
-        if current_version == 0:
-            cur.execute("alter table spelling_bee add column image bytes")
-            cur.execute(f"pragma user_version={latest_version}")
-            db.commit()
-        return db
-
-    def save(self):
-        """Serializes the puzzle and saves it in a SQLite database."""
-        db = self.get_connection(self.db_path)
-        if db is None:
-            return
-        cur = db.cursor()
-        cur.execute(
-            """insert or replace into spelling_bee
-            (timestamp, message_id, center, outside, pangrams, answers, gotten_words, image)
-            values (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (self.timestamp, self.message_id, self.center, json.dumps(list(self.outside)),
-             json.dumps(list(self.pangrams)),
-             json.dumps(list(self.answers)),
-             json.dumps(list(self.gotten_words)),
-             self.image))
-        db.commit()
-        db.close()
-
-    @classmethod
-    def retrieve_last_saved(cls, db_path: str = "db/puzzles.db") -> Optional["SpellingBee"]:
-        """Retrieves the most recently saved puzzle from the SQLite database. Note
-        that the returned object is separate from the database record until/unless
-        persist() is called to assign it to the same database again."""
-        db = cls.get_connection(db_path)
-        cur = db.cursor()
-        try:
-            latest = cur.execute("""select
-                timestamp, message_id, image, center, outside, pangrams, answers, gotten_words
-                from spelling_bee order by timestamp desc limit 1""").fetchone()
-            if latest is None:
-                db.close()
-                return None
-            else:
-                db.close()
-                loaded_puzzle = cls(
-                    latest[0],
-                    latest[3],
-                    *[json.loads(x) for x in latest[4:]])
-                loaded_puzzle.message_id = latest[1]
-                loaded_puzzle.image = latest[2]
-                return loaded_puzzle
-        except:
-            print("couldn't load latest spelling bee from database")
-            traceback.print_exc()
-            db.close()
-            return None
-
-
-# functions used by the Discord bot
-
 async def fetch_new_puzzle(quick_render=False):
     print("fetching puzzle from NYT...")
-    await SpellingBee.fetch_from_nyt()
+    todays_puzzle = await SpellingBee.fetch_from_nyt()
     print("fetched. rendering graphic...")
-    await SpellingBee.todays.render(
+    await todays_puzzle.render(
         BeeRenderer.available_renderers[0] if quick_render else None
     )
     print("graphic rendered. saving today's puzzle in database")
-    SpellingBee.todays.persist()
+    todays_puzzle.set_db()
 
 
 async def post_new_puzzle(channel: discord.TextChannel):
-    current_puzzle = SpellingBee.todays
+    todays_puzzle = SpellingBee.retrieve_saved()
     message_text = random.choice(["Good morning",
                                   "Goedemorgen",
                                   "Bon matin",
@@ -382,14 +45,15 @@ async def post_new_puzzle(channel: discord.TextChannel):
                                   "Bleep Bloop",
                                   "Here is a puzzle",
                                   "Guten Morgen"])+" ✨"
-    alt_words = current_puzzle.get_wiktionary_alternative_answers()
+    alt_words = todays_puzzle.get_wiktionary_alternative_answers()
     if len(alt_words) > 1:
         alt_words_sample = alt_words[:5]
         message_text += (
             " Words from Wiktionary that should count today that the NYT "
             f"fails to acknowledge include: {andify(alt_words_sample)}.")
-    if SpellingBee.yesterdays is not None:
-        previous_words = SpellingBee.yesterdays.get_unguessed_words()
+    yesterdays_puzzle = SingleSessionSpellingBee.retrieve_saved()
+    if yesterdays_puzzle is not None:
+        previous_words = yesterdays_puzzle.get_unguessed_words()
         if len(previous_words) > 1:
             message_text += (
                 " The least common word that no one got for yesterday's "
@@ -402,18 +66,20 @@ async def post_new_puzzle(channel: discord.TextChannel):
                 previous_words[0] +
                 "."
             )
-    puzzle_filename = "puzzle."+current_puzzle.image_file_type
+    puzzle_filename = "puzzle."+todays_puzzle.image_file_type
     await channel.send(
         content=message_text,
-        file=discord.File(BytesIO(current_puzzle.image), puzzle_filename))
+        file=discord.File(BytesIO(todays_puzzle.image), puzzle_filename))
     status_message = await channel.send(content="Words found by you guys so far: None~")
-    current_puzzle.associate_with_message(status_message)
+    SingleSessionSpellingBee(
+        todays_puzzle, metadata={"status_message_id": status_message.id})
 
 
 async def respond_to_guesses(message: discord.Message):
-    if SpellingBee.todays is None:
+    todays_puzzle = SingleSessionSpellingBee.retrieve_saved()
+    if todays_puzzle is None:
         return
-    current_puzzle = SpellingBee.todays
+    current_puzzle = todays_puzzle
     already_found = len(current_puzzle.gotten_words)
     reactions = current_puzzle.respond_to_guesses(message)
     for reaction in reactions:
@@ -423,7 +89,9 @@ async def respond_to_guesses(message: discord.Message):
     try:
         puzzle_channel = message.channel
         status_message: discord.Message = (
-            await puzzle_channel.fetch_message(current_puzzle.message_id)
+            await puzzle_channel.fetch_message(
+                current_puzzle.metadata["status_message_id"]
+            )
         )
         found_words = sorted(
             list(current_puzzle.gotten_words-current_puzzle.pangrams)
@@ -449,11 +117,11 @@ async def respond_to_guesses(message: discord.Message):
 
 def add_bee_functionality(bot: MitchBot):
     try:
-        SpellingBee.retrieve_last_saved()
+        current_puzzle = SingleSessionSpellingBee.retrieve_saved()
+        assert current_puzzle is not None
     except:
         print("could not retrieve last puzzle from database; " +
               "puzzle functionality will stop until the next one is loaded")
-    SpellingBee.todays.persist()
 
     et = ZoneInfo("America/New_York")
     fetch_new_puzzle_at = time(hour=6, minute=50, tzinfo=et)
@@ -463,7 +131,7 @@ def add_bee_functionality(bot: MitchBot):
         quick_render = False
     else:
         puzzle_channel_id = 888301952067325952  # test
-        if True:
+        if False:
             # in case we want to test puzzle posting directly
             fetch_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=10)).time()
             post_new_puzzle_at = (datetime.now(tz=et)+timedelta(seconds=20)).time()
@@ -492,68 +160,43 @@ def add_bee_functionality(bot: MitchBot):
                 await respond_to_guesses(after)
 
     async def obtain_hint(ctx: ApplicationContext):
-        "Spelling Bee hints or life advice (depending on the channel)"
         await ctx.respond(
-            SpellingBee.todays.get_unguessed_hints().format_all_for_discord()
+            SingleSessionSpellingBee.retrieve_saved().get_unguessed_hints().format_all_for_discord()
         )
 
     bot.register_hint(puzzle_channel_id, obtain_hint)
 
     async def monitor_website():
         while True:
-            website_reached = False
-            client = AsyncHTTPClient()
             try:
-                response = await client.fetch("https://www.nytimes.com/puzzles/spelling-bee")
-                html = response.body.decode("utf-8")
-                website_reached = True
-            except:
+                await SpellingBee.fetch_from_nyt()
+                print("spelling bee website appears as expected")
+            except HTTPError:
                 print("nyt website appears to be down")
                 puzzle_channel = bot.get_channel(puzzle_channel_id)
                 await puzzle_channel.send(
                     "Warning⚠️: The NYT Spelling Bee site appears to have gone "
                     "down or to have been moved as of now, "
                     "which might waylay upcoming puzzle posts.")
-            if website_reached:
-                try:
-                    game_data = re.search("window.gameData = (.*?)</script>", html)
-                    game = json.loads(game_data.group(1))
-                    current_game = game["today"]
-                    assert "centerLetter" in current_game
-                    assert "outerLetters" in current_game
-                    assert "pangrams" in current_game
-                    assert "answers" in current_game
-                    print("spelling bee website appears as expected")
-                except:
-                    print("nyt website appears to have changed")
-                    puzzle_channel = bot.get_channel(puzzle_channel_id)
-                    await puzzle_channel.send(
-                        "Warning⚠️: The NYT Spelling Bee site's code appears to have changed "
-                        "to-day, which might waylay upcoming puzzle posts.")
+            except AssertionError:
+                print("nyt website appears to have changed")
+                puzzle_channel = bot.get_channel(puzzle_channel_id)
+                await puzzle_channel.send(
+                    "Warning⚠️: The NYT Spelling Bee site's code appears to have changed "
+                    "to-day, which might waylay upcoming puzzle posts.")
             await asyncio.sleep(60*60*6)
     asyncio.create_task(monitor_website())
 
 
 async def test():
-    print("rank of 'puzzle'", get_word_rank("puzzle"))
-    saved_puzzle = SpellingBee.retrieve_last_saved()
+    saved_puzzle = SpellingBee.retrieve_saved()
     if saved_puzzle is None:
         print("fetching puzzle from nyt")
         puzzle = await SpellingBee.fetch_from_nyt()
     else:
-        print("retrieved puzzle from db")
         puzzle = saved_puzzle
-        if (datetime.now()
-            - datetime.fromtimestamp(puzzle.timestamp)
-                > timedelta(days=1)):
-            print("puzzle from db was old, replacing it with current NYT one")
-            puzzle = await SpellingBee.fetch_from_nyt()
-        else:
-            print("puzzle from db is",
-                  datetime.now() - datetime.fromtimestamp(puzzle.timestamp), "old")
-    puzzle.persist()
     print("today's words from least to most common:")
-    print(puzzle.get_unguessed_words())
+    print(puzzle.get_unguessed_words(set()))
     # answers = iter(puzzle.answers)
     # puzzle.guess(next(answers))
     print("words that the nyt doesn't want us to know about:")
@@ -561,7 +204,7 @@ async def test():
     puzzle.save()
 
     print("Hints table:")
-    table = puzzle.get_unguessed_hints()
+    table = puzzle.get_unguessed_hints(set())
     print(table.format_table())
     print(table.format_two_letters())
     print(table.format_pangram_count())
