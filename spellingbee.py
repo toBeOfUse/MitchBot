@@ -81,7 +81,7 @@ async def respond_to_guesses(message: discord.Message):
         return
     current_puzzle = todays_puzzle
     already_found = len(current_puzzle.gotten_words)
-    reactions = current_puzzle.respond_to_guesses(message)
+    reactions = current_puzzle.respond_to_guesses(message.content)
     for reaction in reactions:
         await message.add_reaction(reaction)
     if len(current_puzzle.gotten_words) == already_found:
@@ -93,17 +93,9 @@ async def respond_to_guesses(message: discord.Message):
                 current_puzzle.metadata["status_message_id"]
             )
         )
-        found_words = sorted(
-            list(current_puzzle.gotten_words-current_puzzle.pangrams)
-        )
         status_text = 'Words found by you guys so far: '
-        status_text += f'||{andify(found_words)}.|| '
-        found_pangrams = sorted(
-            list(current_puzzle.gotten_words & current_puzzle.pangrams)
-        )
-        if len(found_pangrams) > 0:
-            status_text += f"Pangrams: ||{andify(found_pangrams)}.|| "
-        status_text += f'({current_puzzle.percentage_complete}% complete'
+        status_text += current_puzzle.list_gotten_words(True, ["||", "||"])
+        status_text += f' ({current_puzzle.percentage_complete}% complete'
         if current_puzzle.percentage_complete == 100:
             status_text += " 🎉)"
         else:
