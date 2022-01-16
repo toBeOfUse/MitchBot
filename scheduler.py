@@ -69,7 +69,7 @@ def schedule_tasks(client: MitchBot):
 
     # poetry scheduling:
     poem_time = time(hour=2, tzinfo=et)
-    if client.test_mode and True:
+    if client.test_mode and False:
         poem_time = (datetime.now(tz=et)+timedelta(seconds=5)).time()  # test
 
     async def send_poem():
