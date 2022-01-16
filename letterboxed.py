@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 from collections import defaultdict
+from difflib import SequenceMatcher
 import json
 from os import PathLike
 import re
@@ -21,13 +22,18 @@ from bs4 import BeautifulSoup as Soup
 
 from responders import MessageResponder
 from scheduler import repeatedly_schedule_task_for, et
-from db.queries import get_wiktionary_trie, get_word_rank
+from db.queries import get_word_rank
 from grammar import andify, num, add_s, copula
 if TYPE_CHECKING:
     from MitchBot import MitchBot
 
 alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 assert len(alphabet) == 26
+
+with open(
+    "db/letterboxed-wiktionary-english-words.txt",
+        encoding="utf-8") as wiktionary_file:
+    wiktionary = set(map(lambda x: x.casefold(), wiktionary_file.read().splitlines()))
 
 
 class LetterBoxedWord:
@@ -478,10 +484,9 @@ class LetterBoxed:
         return result
 
     def percentage_of_words_in_wiktionary(self):
-        wikt = get_wiktionary_trie()
         return round(
             (
-                sum(int(wikt.is_string_there(x.word)) for x in self.valid_words) /
+                sum(int(x.word in wiktionary) for x in self.valid_words) /
                 len(self.valid_words))
             * 100, 2)
 
@@ -549,12 +554,18 @@ async def post_letterboxed(guild: discord.Guild, thread_id: int):
 
     # find long words not in wiktionary to show off
     unfound_words = list(
-        last_boxed.valid_words.difference(last_boxed.user_found_words)
+        map(
+            lambda x: x.word,
+            last_boxed.valid_words.difference(last_boxed.user_found_words))
     )
-    unfound_words.sort(key=lambda x: len(x.word), reverse=True)
+    unfound_words.sort(key=len, reverse=True)
     mystery_words = []
-    trie = get_wiktionary_trie()
-    def word_mysteriousness_test(x): return not trie.is_string_there(x.word)
+
+    def word_mysteriousness_test(x):
+        return (
+            x.casefold() not in wiktionary and
+            all(SequenceMatcher(None, x, y).ratio() < 0.9 for y in mystery_words)
+        )
     i = 0
     test_nullified = False
     word_source = iter(word for word in unfound_words if word_mysteriousness_test(word))
@@ -564,8 +575,7 @@ async def post_letterboxed(guild: discord.Guild, thread_id: int):
             mystery_words.append(mystery_word)
             i += 1
         else:
-            # nullify the mysteriousness test if we've run out of words that aren't in
-            # wiktionary
+            # nullify the mysteriousness test if we've run out of words that meet it
             if not test_nullified:
                 def word_mysteriousness_test(): return True
                 test_nullified = True
