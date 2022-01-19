@@ -62,9 +62,9 @@ async def post_new_puzzle(channel: discord.TextChannel):
             )
         elif len(previous_words) == 1:
             message_text += (
-                " The only word no one got yesterday was " +
+                " The only word no one got yesterday was \"" +
                 previous_words[0] +
-                "."
+                ".\""
             )
     puzzle_filename = "puzzle."+todays_puzzle.image_file_type
     await channel.send(
