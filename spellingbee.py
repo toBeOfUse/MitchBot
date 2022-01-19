@@ -1,8 +1,7 @@
 from __future__ import annotations
 import asyncio
 from io import BytesIO
-from tokenize import Single
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 import traceback
 from datetime import datetime, time, timedelta
 import random
@@ -13,7 +12,7 @@ from tornado.ioloop import IOLoop
 import discord
 from PIL import Image
 
-from bee_engine import SpellingBee, SingleSessionSpellingBee, BeeRenderer
+from bee_engine import SpellingBee, SessionBee, BeeRenderer
 
 from responders import MessageResponder
 from grammar import andify
@@ -22,6 +21,7 @@ if TYPE_CHECKING:
     from MitchBot import MitchBot
     from discord.commands.context import ApplicationContext
 
+db_path = "./db/bee_engine.db"
 
 async def fetch_new_puzzle(quick_render=False):
     print("fetching puzzle from NYT...")
@@ -31,11 +31,11 @@ async def fetch_new_puzzle(quick_render=False):
         BeeRenderer.available_renderers[0] if quick_render else None
     )
     print("graphic rendered. saving today's puzzle in database")
-    todays_puzzle.set_db()
+    todays_puzzle.persist_to(db_path)
 
 
 async def post_new_puzzle(channel: discord.TextChannel):
-    todays_puzzle = SpellingBee.retrieve_saved()
+    todays_puzzle = SpellingBee.retrieve_saved("latest", "./db/bee_engine.db")
     message_text = random.choice(["Good morning",
                                   "Goedemorgen",
                                   "Bon matin",
@@ -51,7 +51,7 @@ async def post_new_puzzle(channel: discord.TextChannel):
         message_text += (
             " Words from Wiktionary that should count today that the NYT "
             f"fails to acknowledge include: {andify(alt_words_sample)}.")
-    yesterdays_puzzle = SingleSessionSpellingBee.retrieve_saved()
+    yesterdays_puzzle = SessionBee.retrieve_saved()
     if yesterdays_puzzle is not None:
         previous_words = yesterdays_puzzle.get_unguessed_words()
         if len(previous_words) > 1:
@@ -71,12 +71,13 @@ async def post_new_puzzle(channel: discord.TextChannel):
         content=message_text,
         file=discord.File(BytesIO(todays_puzzle.image), puzzle_filename))
     status_message = await channel.send(content="Words found by you guys so far: None~")
-    SingleSessionSpellingBee(
-        todays_puzzle, metadata={"status_message_id": status_message.id})
+    SessionBee(
+        todays_puzzle, metadata={"status_message_id": status_message.id}
+    ).make_primary_session(db_path)
 
 
 async def respond_to_guesses(message: discord.Message):
-    todays_puzzle = SingleSessionSpellingBee.retrieve_saved()
+    todays_puzzle = SessionBee.retrieve_saved("primary", db_path)
     if todays_puzzle is None:
         return
     current_puzzle = todays_puzzle
@@ -109,7 +110,7 @@ async def respond_to_guesses(message: discord.Message):
 
 def add_bee_functionality(bot: MitchBot):
     try:
-        current_puzzle = SingleSessionSpellingBee.retrieve_saved()
+        current_puzzle = SessionBee.retrieve_saved("primary", db_path)
         assert current_puzzle is not None
     except:
         print("could not retrieve last puzzle from database; " +
@@ -153,7 +154,7 @@ def add_bee_functionality(bot: MitchBot):
 
     async def obtain_hint(ctx: ApplicationContext):
         await ctx.respond(
-            SingleSessionSpellingBee.retrieve_saved().get_unguessed_hints().format_all_for_discord()
+            SessionBee.retrieve_saved("primary", db_path).get_unguessed_hints().format_all_for_discord()
         )
 
     bot.register_hint(puzzle_channel_id, obtain_hint)
@@ -193,7 +194,7 @@ async def test():
     # puzzle.guess(next(answers))
     print("words that the nyt doesn't want us to know about:")
     print(random.sample(puzzle.get_wiktionary_alternative_answers(), 5))
-    puzzle.save()
+    puzzle.persist_to(db_path)
 
     print("Hints table:")
     table = puzzle.get_unguessed_hints(set())
