@@ -28,7 +28,7 @@ async def fetch_new_puzzle(quick_render=False):
     todays_puzzle = await SpellingBee.fetch_from_nyt()
     print("fetched. rendering graphic...")
     await todays_puzzle.render(
-        "hexspin" if quick_render else None
+        "hexspin" if quick_render else ""
     )
     print("graphic rendered. saving today's puzzle in database")
     todays_puzzle.persist_to(db_path)
