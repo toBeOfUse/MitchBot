@@ -28,7 +28,7 @@ async def fetch_new_puzzle(quick_render=False):
     todays_puzzle = await SpellingBee.fetch_from_nyt()
     print("fetched. rendering graphic...")
     await todays_puzzle.render(
-        BeeRenderer.available_renderers[0] if quick_render else None
+        "hexspin" if quick_render else None
     )
     print("graphic rendered. saving today's puzzle in database")
     todays_puzzle.persist_to(db_path)
@@ -51,7 +51,7 @@ async def post_new_puzzle(channel: discord.TextChannel):
         message_text += (
             " Words from Wiktionary that should count today that the NYT "
             f"fails to acknowledge include: {andify(alt_words_sample)}.")
-    yesterdays_puzzle = SessionBee.retrieve_saved()
+    yesterdays_puzzle = SessionBee.retrieve_saved("primary", db_path)
     if yesterdays_puzzle is not None:
         previous_words = yesterdays_puzzle.get_unguessed_words()
         if len(previous_words) > 1:
@@ -71,16 +71,18 @@ async def post_new_puzzle(channel: discord.TextChannel):
         content=message_text,
         file=discord.File(BytesIO(todays_puzzle.image), puzzle_filename))
     status_message = await channel.send(content="Words found by you guys so far: None~")
-    SessionBee(
+    session = SessionBee(
         todays_puzzle, metadata={"status_message_id": status_message.id}
-    ).make_primary_session(db_path)
+    )
+    session.persist_to(db_path)
+    session.make_primary_session()
 
 
 async def respond_to_guesses(message: discord.Message):
-    todays_puzzle = SessionBee.retrieve_saved("primary", db_path)
-    if todays_puzzle is None:
+    current_puzzle = SessionBee.retrieve_saved("primary", db_path)
+    if current_puzzle is None:
         return
-    current_puzzle = todays_puzzle
+    current_puzzle.persist_to(db_path)
     already_found = len(current_puzzle.gotten_words)
     reactions = current_puzzle.respond_to_guesses(message.content)
     for reaction in reactions:
@@ -95,9 +97,9 @@ async def respond_to_guesses(message: discord.Message):
             )
         )
         status_text = 'Words found by you guys so far: '
-        status_text += current_puzzle.list_gotten_words(True, ["||", "||"])
-        status_text += f' ({current_puzzle.percentage_complete}% complete'
-        if current_puzzle.percentage_complete == 100:
+        status_text += current_puzzle.list_gotten_words(separate_pangrams=True, enclose_with=["||", "||"])
+        status_text += f' ({round(current_puzzle.percentage_words_gotten(), 1)}% complete'
+        if current_puzzle.percentage_words_gotten() == 100:
             status_text += " 🎉)"
         else:
             status_text += ")"
