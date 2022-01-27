@@ -15,7 +15,7 @@ py-cord = {git = "https://github.com/toBeOfUse/pycord.git"}
 sortedcontainers = "*"
 beautifulsoup4 = "*"
 lxml = "*"
-bee-engine = {editable = true, path = "./../bee-engine"}
+bee-engine = {git = "https://github.com/tobeofuse/bee-engine"}
 
 [dev-packages]
 autopep8 = "*"
