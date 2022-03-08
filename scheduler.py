@@ -84,16 +84,25 @@ def schedule_tasks(client: MitchBot):
              "Cassiopeia", "Ceres", "Charon", "Ganymede", "The ISS", "Alpha Centauri",
              "The Sombrero Galaxy", "The Tadpole Galaxy", "Hoag's Object"])
         a_state = random.choice(
-            ["retrograde", "intrograde", "prograde", "astrograde", "interrograde", "terragrade",
-             "peltagrade", "fluxigrade", "axigrade", "centigrade", "tardigrade", "upgrade",
-             "rancigrade", "demigrade", "distastigrade", "deltagrade", "orthograde", "fermigrade",
+            ["retrograde", "intrograde", "astrograde", "interrograde", "terragrade",
+             "fluxigrade", "axigrade", "centigrade", "tardigrade", "upgrade",
+             "demigrade", "distastigrade", "deltagrade", "orthograde", "fermigrade",
              "esograde", "altigrade", "bizarrograde", "essentiagrade"])
         prelude = ("Good evening. " +
                    f"It's {int(a_time.strftime('%I'))}:{a_time.strftime('%M %p')} " +
                    f"in {a_city}. {a_body} is in {a_state}. ")
         if next_mail is None:
             prelude += "Tonight's top story is:"
-            poem = get_random_poem()
+            animals = ["cat", "dog", "alligator", "ostrich", "llama", "bunny", "bird",
+                "cow", "horsie", "penguin", "frog", "chinchilla", "meerkat", "snake",
+                "duck", "catboy", "raccoon", "gila monster", "komodo dragon", "unicorn"]
+            sounds = ["mew", "[REDACTED]", "oink", "boing", "pew pew pew", "brrring",
+                "boom", "\"hey guys what's up\"", "hiss", "snort", "grrr", "bzzz",
+                "squeak", "purr", "cock-a-doodle-doo", "chirp", "clang", "hee-haw",
+                "FNRNRNRNRNRNNNRNRNR (elephant noise)", "honk", "neigh", "hah-hah-hah",
+                "coo", "waf", "yap", "awooo", "baa", "quack"]
+            poem = (f"what if there was a little {random.choice(animals)} that " +
+                f"went {random.choice(sounds)}")
             body = "\n".join("> "+x for x in poem.split("\n"))
             embed = None
         else:
