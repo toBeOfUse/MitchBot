@@ -2,6 +2,7 @@ from __future__ import annotations
 import asyncio
 from collections import defaultdict
 from difflib import SequenceMatcher
+from enum import Enum
 import json
 from os import PathLike
 import re
@@ -28,12 +29,12 @@ if TYPE_CHECKING:
     from MitchBot import MitchBot
 
 alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-assert len(alphabet) == 26
+assert len(alphabet) == 26  # why is this here 😭
 
 with open(
     "db/letterboxed-wiktionary-english-words.txt",
         encoding="utf-8") as wiktionary_file:
-    wiktionary = set(map(lambda x: x.casefold(), wiktionary_file.read().splitlines()))
+    wiktionary = set(map(lambda x: x.casefold().strip(), wiktionary_file))
 
 
 class LetterBoxedWord:
@@ -64,10 +65,19 @@ class LetterBoxedWord:
 
     def __repr__(self):
         return self.word
+    
+    def __getitem__(self, key: int):
+        return self.word[key]
+    
+    def __add__(self, other: "LetterBoxedSolution"):
+        return LetterBoxedSolution([self.word]+other.words)
 
 
 class LetterBoxedSolution:
-    def __init__(self, initial: list[LetterBoxedWord] = []):
+    def __init__(self, initial: list[LetterBoxedWord | str] = []):
+        for i in range (len(initial)):
+            if type(initial[i]) is str:
+                initial[i] = LetterBoxedWord(initial[i])
         self.words = initial
 
     def add_word(self, word: LetterBoxedWord):
@@ -179,6 +189,9 @@ class LetterBoxedSolutionSet:
     def __str__(self):
         return "{"+", ".join(str(x) for x in self.solutions)+"}"
 
+class Direction(Enum):
+    left="left"
+    right="right"
 
 class LetterBoxed:
     def __init__(
@@ -196,8 +209,8 @@ class LetterBoxed:
         self.max_word_score: int = 0
         self.restricted_valid_words: set[LetterBoxedWord] = set()
         self.index = {l: defaultdict(set) for l in alphabet}
+        self.reverse_index = {l: defaultdict(set) for l in alphabet}
 
-        print("building letterboxed index...")
         for word in map(LetterBoxedWord, valid_words):
             self.valid_words.add(word)
             if word.is_common:
@@ -205,7 +218,7 @@ class LetterBoxed:
             self.min_word_score = min(word.unique_letters, self.min_word_score)
             self.max_word_score = max(word.unique_letters, self.max_word_score)
             self.index[word.first_letter][word.unique_letters].add(word)
-        print("index built")
+            self.reverse_index[word.last_letter][word.unique_letters].add(word)
 
         self.found_solution_sets: dict[int, LetterBoxedSolutionSet] = {}
 
@@ -372,29 +385,34 @@ class LetterBoxed:
             self,
             antecedent: Union[LetterBoxedWord, LetterBoxedSolution],
             min_points=-1,
-            max_points=-1) -> set[LetterBoxedWord]:
+            max_points=-1,
+            direction: Direction=Direction.right) -> set[LetterBoxedWord]:
         """
         Returns all valid follow-up words with scores in the range [min_points,
         max_points]. Duplicate words are not considered valid follow-ups.
         """
+        letter = 0 if direction == Direction.left else -1
+        index = self.reverse_index if direction == Direction.left else self.index
         if type(antecedent) is LetterBoxedSolution:
-            last_word = antecedent.words[-1]
+            relevant_word = antecedent.words[-1]
         else:
-            last_word = antecedent
+            relevant_word = antecedent
+        relevant_letter = relevant_word[letter]
         if min_points == -1:
             min_points = self.min_word_score
         if max_points == -1:
             max_points = self.max_word_score
         result = set()
         for i in range(min_points, max_points+1):
-            result = result.union(self.index[last_word.last_letter][i])
-        result.discard(last_word)
+            result = result.union(index[relevant_letter][i])
+        result.discard(relevant_word)
         return result
 
     def _recursive_search(
         self,
         desired_length: int,
-        words_so_far: LetterBoxedSolution = LetterBoxedSolution([])
+        words_so_far: LetterBoxedSolution = LetterBoxedSolution([]),
+        direction: Direction=Direction.right
     ) -> Optional[LetterBoxedSolutionSet]:
         """
         recursive method. takes a solution that's in the process of being built,
@@ -419,7 +437,7 @@ class LetterBoxed:
             # and gather and return the results.
             result = LetterBoxedSolutionSet()
             for word in self.valid_words:
-                solutions = self._recursive_search(desired_length, words_so_far+word)
+                solutions = self._recursive_search(desired_length, LetterBoxedSolution([word]), direction)
                 if solutions is not None:
                     result += solutions
             result.finalize()
@@ -429,8 +447,8 @@ class LetterBoxed:
             # this "chain" so far
             result = []
             for followup in self.get_valid_continuation(
-                    words_so_far, self.needed_letter_count - words_so_far.unique_letters):
-                final = words_so_far + followup
+                    words_so_far, self.needed_letter_count - words_so_far.unique_letters, 12, direction):
+                final = words_so_far + followup if direction == Direction.right else followup + words_so_far
                 if final.is_complete():
                     result.append(final)
             return LetterBoxedSolutionSet(result)
@@ -441,17 +459,22 @@ class LetterBoxed:
             # solution.
             results = LetterBoxedSolutionSet()
             for followup in self.get_valid_continuation(
-                    words_so_far, 0, 12 - words_so_far.unique_letters):
-                result = self._recursive_search(desired_length, words_so_far+followup)
+                    words_so_far, 0, 12 - words_so_far.unique_letters, direction):
+                result = self._recursive_search(
+                    desired_length, 
+                    words_so_far+followup if direction == Direction.right else followup+words_so_far, 
+                    direction)
                 if result is not None:
                     results += result
             return results
 
-    def get_solutions_by_length(self, length: int = 2) -> LetterBoxedSolutionSet:
+    def get_solutions_by_length(
+        self, length: int = 2, direction: Direction=Direction.right
+    ) -> LetterBoxedSolutionSet:
         if length in self.found_solution_sets:
             return self.found_solution_sets[length]
         else:
-            solutions = self._recursive_search(length)
+            solutions = self._recursive_search(length, direction)
             self.found_solution_sets[length] = solutions
             self.save()
             return solutions
@@ -461,7 +484,7 @@ class LetterBoxed:
         def sol(count: int) -> str:
             return add_s("solution", count)
 
-        solutions = {n: self.get_solutions_by_length(n) for n in range(1, 3+1)}
+        solutions = {n: self.get_solutions_by_length(n) for n in range(1, 2+1)}
         result = ""
         if len(solutions[1]):
             one = len(solutions[1])
@@ -469,16 +492,17 @@ class LetterBoxed:
 
         two = len(solutions[2])
         two_r = len(solutions[2].common_word_solutions)
-        three = len(solutions[3])
-        three_r = len(solutions[3].common_word_solutions)
+        # three = len(solutions[3])
+        # three_r = len(solutions[3].common_word_solutions)
         result += (
-            f"There {copula(two)} {num(two)} two-word {sol(two)} " +
-            f"and {num(three)} three-word {sol(three)}. "
+            f"There {copula(two)} {num(two)} two-word {sol(two)}. "
+            # f"and {num(three)} three-word {sol(three)}. "
         )
         result += (
             "Limiting ourselves to the most common 100,000 words in the " +
             f"Google Books corpus, there {copula(two_r)} {num(two_r)} two-word " +
-            f"{sol(two_r)} and {num(three_r)} three-word {sol(three_r)}."
+            f"{sol(two_r)}."
+            #" and {num(three_r)} three-word {sol(three_r)}."
         )
 
         return result
@@ -486,26 +510,45 @@ class LetterBoxed:
     def percentage_of_words_in_wiktionary(self):
         return round(
             (
-                sum(int(x.word in wiktionary) for x in self.valid_words) /
+                sum(int(x.word.casefold() in wiktionary) for x in self.valid_words) /
                 len(self.valid_words))
             * 100, 2)
+    
+    def in_three_word_solution(self, word: LetterBoxedWord) -> bool:
+        if not word in self.valid_words:
+            return False
+        befores = self.get_valid_continuation(word, 1, 12, Direction.left)
+        for before in befores:
+            pair = LetterBoxedSolution([before, word])
+            if pair.is_complete():
+                continue
+            continuations = self._recursive_search(3, pair, Direction.right)
+            if len(continuations) > 0:
+                return True
+        return (
+            len(self._recursive_search(3, LetterBoxedSolution([word]), Direction.right)) > 0
+            or
+            len(self._recursive_search(3, LetterBoxedSolution([word]), Direction.left)) > 0
+        )
+
+
 
     def react_to_words(self, words: list[str]) -> list[str]:
         reactions = []
         solutions = {n: self.get_solutions_by_length(n) for n in range(1, 3+1)}
-        words = [LetterBoxedWord(x) for x in words]
+        words: list[LetterBoxedWord] = [LetterBoxedWord(x) for x in words]
         # scan single words
         user_found_words_count = len(self.user_found_words)
         for word in words:
             if word in self.valid_words:
                 self.user_found_words.add(word)
             if word in solutions[2].words:
-                if word in solutions[2].common_words:
+                if word.is_common:
                     reactions.append("🐫")
                 else:
                     reactions.append("👀")
-            if word in solutions[3].words:
-                if word in solutions[3].common_words:
+            if self.in_three_word_solution(word):
+                if word.is_common:
                     reactions.append("🌳")
                 else:
                     reactions.append("🥶")
@@ -654,7 +697,8 @@ async def test():
         puzzle = await LetterBoxed.fetch_from_nyt()
     print(puzzle)
     print(puzzle.get_solutions_by_length(2))
-    print(puzzle.get_solutions_by_length(2).common_word_solutions)
+    assert puzzle.get_solutions_by_length(2) == puzzle.get_solutions_by_length(2, Direction.left)
+    print([str(x) for x in puzzle.get_solutions_by_length(2, Direction.left).common_word_solutions])
     print(puzzle.get_solutions_quantity_statement())
     print(
         "percentage of today's words in wiktionary:",
