@@ -14,6 +14,7 @@ lxml = "*"
 bee-engine = {git = "https://github.com/tobeofuse/bee-engine"}
 aiohttp = "*"
 disnake = "*"
+peewee = "*"
 
 [dev-packages]
 autopep8 = "*"

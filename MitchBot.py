@@ -11,6 +11,7 @@ import disnake as discord
 from PIL import Image
 from disnake.interactions import ApplicationCommandInteraction
 from disnake.ext import commands
+from poll import add_poll_functionality
 
 # project files
 from responders import add_responses, MessageResponder
@@ -24,7 +25,7 @@ class MitchBot(commands.Bot):
         intents = discord.Intents.default()
         intents.messages = True
         intents.message_content = True
-        super().__init__(intents=intents, prefix="")
+        super().__init__(intents=intents, prefix="", sync_commands=True)
         self.last_disconnect: float = 0
         # set in on_ready:
         self.responses: list[MessageResponder] = []
@@ -61,11 +62,19 @@ class MitchBot(commands.Bot):
             add_responses(self)
             schedule_tasks(self)
             add_bee_functionality(self)
+            add_poll_functionality(self)
+            self._schedule_app_command_preparation()
+
             # add_letterboxed_functionality(self)
             self.initialized = True
 
     def slash_command(self, *args, **kwargs):
-        return super().slash_command(*args, **kwargs, guild_ids=self.command_guild_ids)
+        return super().slash_command(
+            *args, 
+            **kwargs, 
+            guild_ids=self.command_guild_ids, 
+            auto_sync=True
+        )
 
     def register_responder(self, responder: MessageResponder):
         self.responses.append(responder)

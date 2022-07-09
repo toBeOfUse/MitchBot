@@ -11,6 +11,7 @@ images/temp/*
 !images/temp/.gitkeep
 *.blend1
 db/random.db
+db/polls.db
 images/puzzlestest.png
 db/trieparse.c
 
