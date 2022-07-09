@@ -8,8 +8,7 @@ import random
 from urllib.error import HTTPError
 from zoneinfo import ZoneInfo
 
-from tornado.ioloop import IOLoop
-import discord
+import disnake as discord
 from PIL import Image
 
 from bee_engine import SpellingBee, SessionBee, BeeRenderer
@@ -19,8 +18,8 @@ from grammar import andify
 from scheduler import repeatedly_schedule_task_for
 if TYPE_CHECKING:
     from MitchBot import MitchBot
-    from discord.commands.context import ApplicationContext
-
+    from disnake.interactions import ApplicationCommandInteraction
+    
 db_path = "./db/bee_engine.db"
 
 async def fetch_new_puzzle(quick_render=False):
@@ -154,9 +153,12 @@ def add_bee_functionality(bot: MitchBot):
                 # replace with new ones
                 await respond_to_guesses(after)
 
-    async def obtain_hint(ctx: ApplicationContext):
-        await ctx.respond(
-            SessionBee.retrieve_saved("primary", db_path).get_unguessed_hints().format_all_for_discord()
+    async def obtain_hint(ctx: ApplicationCommandInteraction):
+        await ctx.response.send_message(
+            SessionBee
+                .retrieve_saved("primary", db_path)
+                .get_unguessed_hints()
+                .format_all_for_discord()
         )
 
     bot.register_hint(puzzle_channel_id, obtain_hint)
@@ -219,6 +221,6 @@ async def test():
 
 if __name__ == "__main__":
     try:
-        IOLoop.current().run_sync(test)
+        asyncio.run(test())
     except KeyboardInterrupt:
         print("Received SIGINT, exiting")

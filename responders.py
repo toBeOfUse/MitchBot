@@ -7,16 +7,15 @@ import random
 import re
 import traceback
 
-import discord
-from discord.commands import Option
-from discord.enums import SlashCommandOptionType
+import disnake as discord
+from disnake.interactions import ApplicationCommandInteraction
+from disnake.ext.commands import Param
 from PIL import Image
 
 from typing import TYPE_CHECKING, Union, Callable
 if TYPE_CHECKING:
     from MitchBot import MitchBot
     from asyncio.futures import Future
-    from discord.commands.context import ApplicationContext
 
 from db.queries import get_random_nickname, get_random_strategy
 
@@ -155,13 +154,12 @@ def add_responses(bot: MitchBot):
 
     bot.register_responder(MessageResponder(r"\bmake\b.*\bfight\b", message_fight))
 
-    @bot.slash_command(guild_ids=bot.command_guild_ids)
+    @bot.slash_command(description="Self explanatory")
     async def start_fight(
-            ctx: ApplicationContext,
-            fighter1: Option(SlashCommandOptionType.user, required=True),
-            fighter2: Option(SlashCommandOptionType.user, required=True)):
-        "Self-explanatory"
-        await ctx.respond(
+            ctx: ApplicationCommandInteraction,
+            fighter1: discord.Member,
+            fighter2: discord.Member):
+        await ctx.response.send_message(
             file=discord.File(fp=await _fight([fighter1, fighter2]), filename="fight.png")
         )
 
@@ -185,10 +183,9 @@ def add_responses(bot: MitchBot):
             )
     bot.register_responder(MessageResponder("kiss", message_kiss, require_mention=True))
 
-    @bot.slash_command(guild_ids=bot.command_guild_ids)
-    async def kiss(ctx: ApplicationContext):
-        "kis 🥺"
-        await ctx.respond(
+    @bot.slash_command(description="kis 🥺")
+    async def kiss(ctx: ApplicationCommandInteraction):
+        await ctx.response.send_message(
             file=discord.File(fp=await _kiss(ctx.user),
                               filename='kiss.png')
         )
@@ -207,36 +204,36 @@ def add_responses(bot: MitchBot):
         await message.edit(content=days[now.weekday()])
     bot.register_responder(MessageResponder(r"\bwhat\b.*\bday\b|\bday of the week\b", day_of_week))
 
+    def nicknames_by_count(count: int):
+        nicknames = [get_random_nickname() for _ in range(0, count)]
+        return (
+            "Hello, " + (
+                ", ".join(nicknames[:-1])+", and/or " if count > 1 else ""
+            )+nicknames[-1]+".")
+
     async def nickname(message: discord.Message):
         if "nicknames" in message.content.lower():
-            nicknames = [
-                get_random_nickname() for _ in range(
-                    0, 5 * message.content.lower().count("nicknames"))
-            ]
-            mess = "Hello, " + ", ".join(nicknames[:-1])+", and/or "+nicknames[-1]
-            await message.reply(mess)
+            count = 5 * message.content.lower().count("nicknames")
+            await message.reply(nicknames_by_count(count))
         else:
             mess = "Hello, ✨" + get_random_nickname()+"✨"
             await message.reply(mess)
     bot.register_responder(MessageResponder(r"nicknames?", nickname, require_mention=True))
 
-    @bot.slash_command(guild_ids=bot.command_guild_ids)
+    nickname_param = Param(default=5, ge=1, le=25, description="how many" )
+
+    @bot.slash_command(description='https://www.findnicknames.com/cool-nicknames/')
     async def obtain_nicknames(
-        ctx: ApplicationContext,
-        count: Option(int,
-                      min_value=1,
-                      default=5,
-                      max_value=25,
-                      description="how many",
-                      required=False)):
-        "https://www.findnicknames.com/cool-nicknames/"
-        if type(count) is Option:
-            count = count.default
-        nicknames = [get_random_nickname() for _ in range(0, count)]
-        await ctx.respond(
-            "Hello, " + (
-                ", ".join(nicknames[:-1])+", and/or " if count > 1 else ""
-            )+nicknames[-1]+".")
+        ctx: ApplicationCommandInteraction,
+        count: int = nickname_param):
+        await ctx.response.send_message(nicknames_by_count(count))
+    
+    @bot.slash_command(description="the response will be private so feel free to spam")
+    async def quietly_obtain_nicknames(
+        ctx: ApplicationCommandInteraction,
+        count: int=nickname_param
+    ):
+      await ctx.response.send_message(nicknames_by_count(count), ephemeral=True)
 
     async def add_emoji(message: discord.Message):
         emoji_name_match = re.search("make (.*) emoji", message.content)
@@ -280,12 +277,11 @@ def add_responses(bot: MitchBot):
 
     bot.register_responder(MessageResponder(untamed_words, react_negatively))
 
-    @bot.slash_command(guild_ids=bot.command_guild_ids)
-    async def obtain_hint(context: ApplicationContext):
+    @bot.slash_command()
+    async def obtain_hint(context: ApplicationCommandInteraction):
         "Puzzle hints or life advice, depending on the channel"
         if context.channel_id in bot.hint_functions:
             await bot.hint_functions[context.channel_id](context)
         else:
-            await context.respond(get_random_strategy())
-
-    asyncio.create_task(bot.register_commands())
+            await context.response.send_message(get_random_strategy())
+    bot._schedule_app_command_preparation()

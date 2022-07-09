@@ -5,7 +5,7 @@ import inspect
 import random
 from typing import Callable, TYPE_CHECKING
 
-import discord
+import disnake as discord
 if TYPE_CHECKING:
     from MitchBot import MitchBot
 

@@ -4,18 +4,16 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-tornado = "*"
 pillow = "*"
-comtypes = "*"
 cairosvg = "*"
 cython = "*"
 tzdata = "*"
 timezonefinder = {extras = ["numba"], version = "*"}
-py-cord = {git = "https://github.com/toBeOfUse/pycord.git"}
-sortedcontainers = "*"
 beautifulsoup4 = "*"
 lxml = "*"
 bee-engine = {git = "https://github.com/tobeofuse/bee-engine"}
+aiohttp = "*"
+disnake = "*"
 
 [dev-packages]
 autopep8 = "*"

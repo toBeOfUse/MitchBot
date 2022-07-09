@@ -1,8 +1,8 @@
 # python libraries
+import asyncio
 import logging
 
 # external libraries
-from tornado.ioloop import IOLoop
 
 # project files
 from MitchBot import MitchBot
@@ -22,6 +22,6 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        IOLoop.current().run_sync(main)
+        asyncio.run(main())
     except KeyboardInterrupt:
         print("Received SIGINT, exiting")

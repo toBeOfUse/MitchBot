@@ -13,11 +13,10 @@ from typing import Optional, Union, TYPE_CHECKING
 from datetime import time, datetime, timedelta
 import traceback
 
-import discord
+import aiohttp
+import disnake as discord
 from cairosvg import svg2png
-from discord.commands.context import ApplicationContext
-from tornado.httpclient import AsyncHTTPClient
-from tornado.ioloop import IOLoop
+from disnake.interactions import ApplicationCommandInteraction
 from PIL import Image
 from bs4 import BeautifulSoup as Soup
 
@@ -305,9 +304,9 @@ class LetterBoxed:
 
     @classmethod
     async def fetch_from_nyt(cls):
-        client = AsyncHTTPClient()
-        response = await client.fetch("https://www.nytimes.com/puzzles/letter-boxed")
-        html = response.body.decode("utf-8")
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://www.nytimes.com/puzzles/letter-boxed") as resp:
+                html = resp.text("utf-8")
         game_data = re.search("window.gameData = (.*?)</script>", html)
         if game_data:
             game = json.loads(game_data.group(1))
@@ -674,11 +673,11 @@ def add_letterboxed_functionality(client: MitchBot):
                 letterboxed_thread_id),
             "post_letterboxed"))
 
-    async def obtain_hint(context: ApplicationContext):
+    async def obtain_hint(context: ApplicationCommandInteraction):
         if current_letterboxed:
             hint = current_letterboxed.render_hint()
             if hint is not None:
-                await context.respond(
+                await context.response.send_message(
                     content="Fill in the missing lines to make a Word.",
                     file=discord.File(
                         fp=BytesIO(hint),
@@ -686,7 +685,7 @@ def add_letterboxed_functionality(client: MitchBot):
                     )
                 )
             else:
-                await context.respond("No hints left -  all out of hints.")
+                await context.response.send_message("No hints left -  all out of hints.")
     client.register_hint(letterboxed_thread_id, obtain_hint)
 
 
@@ -716,6 +715,6 @@ async def test():
 
 if __name__ == "__main__":
     try:
-        IOLoop.current().run_sync(test)
+        asyncio.run(test())
     except KeyboardInterrupt:
         print("Received SIGINT, exiting")
