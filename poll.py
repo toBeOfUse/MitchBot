@@ -53,12 +53,12 @@ def search_components(
 class SuggestModal(discord.ui.Modal):
     def __init__(self):
         text_input = discord.ui.TextInput(
-            label="Suggest",
+            label="🥺",
             custom_id="suggest_text_input",
             min_length=1,
             max_length=200
         )
-        title = "Suggest"
+        title = "Suggest a Film"
         custom_id = "suggestion modal for films"
         components = [text_input]
         super().__init__(title=title, custom_id=custom_id, components=components)
