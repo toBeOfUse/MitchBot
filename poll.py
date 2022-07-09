@@ -7,6 +7,7 @@ import peewee as pw
 from datetime import datetime
 
 DROPDOWN_ID = "movie dropdown"
+SUGGEST_BUTTON_ID = "suggest a movie"
 ABSTENTION = "Abstain from vote 👐"
 
 db = pw.SqliteDatabase('db/polls.db')
@@ -80,46 +81,21 @@ class SuggestModal(discord.ui.Modal):
             content=poll_model_to_vote_count(poll),
             view=poll_model_to_view(poll))
 
-async def vote_callback(action: discord.MessageInteraction):
-    message = action.message
-    poll_id = message.id
-    poll = Poll.get_by_id(poll_id)
-    try:
-        Vote.get(
-            Vote.in_poll==poll_id and Vote.voter_id==action.author.id
-        ).delete_instance()
-    except pw.DoesNotExist: pass
-    selection = action.values[0]
-    voter_nickname = (action.author.nick 
-        if isinstance(action.author.nick, str) 
-        else action.author.name)
-    if not (len(selection) == 0 or selection == ABSTENTION):
-        Vote.create(what_for=selection,
-            in_poll=poll_id,
-            voter_id=action.author.id,
-            voter_nickname=voter_nickname
-        ).save()
-    await action.response.edit_message(
-        content=poll_model_to_vote_count(poll),
-        view=poll_model_to_view(poll))
-
 def poll_model_to_view(poll: Optional[Poll]=None) -> discord.ui.View:
     options = [x.name for x in poll.options] if poll != None else []
     view = discord.ui.View(timeout=None)
-
-    dropdown = discord.ui.Select(
-        custom_id=DROPDOWN_ID,
-        options = options+[ABSTENTION])
-    view.add_item(dropdown)
-
-    add_button = discord.ui.Button(label="Suggest a Film")
-    async def add_button_callback(action: discord.MessageInteraction):
-        await action.response.send_modal(SuggestModal())
-    add_button.callback = add_button_callback
-    view.add_item(add_button)
-
-    dropdown.callback = vote_callback
-
+    view.add_item(
+        discord.ui.Select(
+            custom_id=DROPDOWN_ID,
+            options = options+[ABSTENTION]
+        )
+    )
+    view.add_item(
+        discord.ui.Button(
+            label="Suggest a Film",
+            custom_id=SUGGEST_BUTTON_ID
+        )
+    )
     return view
 
 def poll_model_to_vote_count(poll: Poll) -> str:
@@ -132,11 +108,46 @@ def poll_model_to_vote_count(poll: Poll) -> str:
             movie_voters[movie_name].append(vote.voter_nickname)
     sorted_movies= sorted(list(movie_votes.items()), key=lambda x: x[1], reverse=True)
     return "\n".join(
-        [f"- *{x[0]}*: {x[1]} [{', '.join(movie_voters[x[0]])}]" for x in sorted_movies]
+        [f"- **{x[0]}**: +{x[1]} [{', '.join(movie_voters[x[0]])}]" for x in sorted_movies]
     )
 
 
 def add_poll_functionality(bot: Bot):
+
+    @bot.listen('on_button_click')
+    async def add_button_callback(action: discord.MessageInteraction):
+        if action.component.custom_id == SUGGEST_BUTTON_ID:
+            await action.response.send_modal(SuggestModal())
+        else:
+            await action.response.defer()
+
+    @bot.listen('on_dropdown')
+    async def vote_callback(action: discord.MessageInteraction):
+        if action.component.custom_id != DROPDOWN_ID:
+            await action.response.defer()
+            return
+        message = action.message
+        poll_id = message.id
+        poll = Poll.get_by_id(poll_id)
+        try:
+            Vote.get(
+                Vote.in_poll==poll_id and Vote.voter_id==action.author.id
+            ).delete_instance()
+        except pw.DoesNotExist: pass
+        selection = action.values[0]
+        voter_nickname = (action.author.nick 
+            if isinstance(action.author.nick, str) 
+            else action.author.name)
+        if not (len(selection) == 0 or selection == ABSTENTION):
+            Vote.create(what_for=selection,
+                in_poll=poll_id,
+                voter_id=action.author.id,
+                voter_nickname=voter_nickname
+            ).save()
+        await action.response.edit_message(
+            content=poll_model_to_vote_count(poll),
+            view=poll_model_to_view(poll))
+
     @bot.slash_command(description="fight! fight! fight!")
     async def movie_poll(context: ApplicationCommandInteraction):
         await context.response.send_message(view=poll_model_to_view())
