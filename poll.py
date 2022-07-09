@@ -22,8 +22,10 @@ class Poll(BaseModel):
 
 class MovieOption(BaseModel):
     added_by_id = pw.BigIntegerField()
-    name = pw.CharField(primary_key=True)
+    name = pw.CharField()
     in_poll = pw.ForeignKeyField(Poll, backref="options")
+    class Meta:
+        constraints = [pw.SQL('UNIQUE (name, in_poll_id)')]
 
 class Vote(BaseModel):
     what_for = pw.ForeignKeyField(MovieOption, backref="votes")
@@ -139,7 +141,11 @@ def add_poll_functionality(bot: Bot):
             if isinstance(action.author.nick, str) 
             else action.author.name)
         if not (len(selection) == 0 or selection == ABSTENTION):
-            Vote.create(what_for=selection,
+            movie = MovieOption.get(
+                MovieOption.in_poll==poll_id and
+                MovieOption.name==selection
+            )
+            Vote.create(what_for=movie.id,
                 in_poll=poll_id,
                 voter_id=action.author.id,
                 voter_nickname=voter_nickname
