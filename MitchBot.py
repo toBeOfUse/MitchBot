@@ -4,6 +4,7 @@ import math
 from io import BytesIO
 import random
 from typing import TYPE_CHECKING, Callable, Union, Coroutine
+from datetime import datetime
 
 # external package dependencies
 import disnake as discord
@@ -24,6 +25,7 @@ class MitchBot(commands.Bot):
         intents.messages = True
         intents.message_content = True
         super().__init__(intents=intents, prefix="")
+        self.last_disconnect: float = 0
         # set in on_ready:
         self.responses: list[MessageResponder] = []
         self.initialized = False
@@ -86,4 +88,10 @@ class MitchBot(commands.Bot):
             await message.reply(response + ", "+message.author.display_name+".")
 
     async def on_disconnect(self):
-        print("disconnected :(")
+        self.last_disconnect = datetime.now().timestamp()
+        print(f"disconnected :( {datetime.now().isoformat()}")
+    
+    async def on_connect(self):
+        print(f"connected {datetime.now().isoformat()}")
+        if self.last_disconnect != 0:
+            print(f"had been gone for {datetime.now().timestamp()-self.last_disconnect} seconds")
