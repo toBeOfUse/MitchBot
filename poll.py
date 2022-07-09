@@ -148,7 +148,7 @@ def add_poll_functionality(bot: Bot):
             content=poll_model_to_vote_count(poll),
             view=poll_model_to_view(poll))
 
-    @bot.slash_command(description="fight! fight! fight!")
+    @bot.slash_command(description="Suggestion box and voting system.")
     async def movie_poll(context: ApplicationCommandInteraction):
         await context.response.send_message(view=poll_model_to_view())
         Poll.create(message_id=(await context.original_message()).id)
