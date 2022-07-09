@@ -138,6 +138,9 @@ def add_responses(bot: MitchBot):
         bg.save(image_bytes, format='PNG')
         image_bytes.seek(0)
         return image_bytes
+    
+    def _fight_alt_text(fighters: list[discord.User]) -> str:
+        return f"{fighters[0].name} and {fighters[1].name} with crossed swords between them"
 
     async def message_fight(message: discord.Message):
         if len(
@@ -149,7 +152,11 @@ def add_responses(bot: MitchBot):
                 else:
                     fighters = [user for user in message.mentions if bot.user != user]
                 await message.channel.send(
-                    file=discord.File(fp=await _fight(fighters), filename="fight.png")
+                    file=discord.File(
+                        fp=await _fight(fighters),
+                        filename="fight.png",
+                        description=_fight_alt_text(fighters)
+                    )
                 )
 
     bot.register_responder(MessageResponder(r"\bmake\b.*\bfight\b", message_fight))
@@ -160,7 +167,11 @@ def add_responses(bot: MitchBot):
             fighter1: discord.Member,
             fighter2: discord.Member):
         await ctx.response.send_message(
-            file=discord.File(fp=await _fight([fighter1, fighter2]), filename="fight.png")
+            file=discord.File(
+                fp=await _fight([fighter1, fighter2]),
+                filename="fight.png",
+                description=_fight_alt_text([fighter1, fighter2])
+            )
         )
 
     async def _kiss(recipient: discord.User):
@@ -174,20 +185,29 @@ def add_responses(bot: MitchBot):
         final.save(image_bytes, format='PNG')
         image_bytes.seek(0)
         return image_bytes
+    
+    def _kiss_alt_text(recipient: discord.User) -> str:
+        return f"{recipient.name}'s avatar with lipstick marks on it"
 
     async def message_kiss(message: discord.Message):
         async with message.channel.typing():
             await message.reply(
-                file=discord.File(fp=await _kiss(message.author),
-                                  filename='kiss.png')
+                file=discord.File(
+                    fp=await _kiss(message.author),
+                    filename='kiss.png',
+                    description=_kiss_alt_text(message.author)
+                )
             )
     bot.register_responder(MessageResponder("kiss", message_kiss, require_mention=True))
 
     @bot.slash_command(description="kis 🥺")
     async def kiss(ctx: ApplicationCommandInteraction):
         await ctx.response.send_message(
-            file=discord.File(fp=await _kiss(ctx.user),
-                              filename='kiss.png')
+            file=discord.File(
+                fp=await _kiss(ctx.user),
+                filename='kiss.png',
+                description=_kiss_alt_text(ctx.user)
+            )
         )
 
     async def day_of_week(message: discord.Message):
@@ -288,5 +308,3 @@ def add_responses(bot: MitchBot):
     async def convert_100_miles_to_kilometers(context: ApplicationCommandInteraction
         ):
         await context.response.send_message("100 miles is 160.9344 kilometers.")
-
-    bot._schedule_app_command_preparation()
