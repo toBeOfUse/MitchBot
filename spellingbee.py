@@ -72,7 +72,7 @@ async def post_new_puzzle(channel: discord.TextChannel):
             BytesIO(todays_puzzle.image), 
             puzzle_filename, 
             description="A spelling bee puzzle with the center letter"
-                f"{todays_puzzle.center} and surrounding letters"
+                f" {todays_puzzle.center} and surrounding letters"
                 f" {andify(todays_puzzle.outside)}."
             )
         )
