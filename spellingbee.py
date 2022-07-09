@@ -68,7 +68,14 @@ async def post_new_puzzle(channel: discord.TextChannel):
     puzzle_filename = "puzzle."+todays_puzzle.image_file_type
     await channel.send(
         content=message_text,
-        file=discord.File(BytesIO(todays_puzzle.image), puzzle_filename))
+        file=discord.File(
+            BytesIO(todays_puzzle.image), 
+            puzzle_filename, 
+            description="A spelling bee puzzle with the center letter"
+                f"{todays_puzzle.center} and surrounding letters"
+                f" {andify(todays_puzzle.outside)}."
+            )
+        )
     status_message = await channel.send(content="Words found by you guys so far: None~")
     session = SessionBee(
         todays_puzzle, metadata={"status_message_id": status_message.id}
