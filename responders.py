@@ -277,11 +277,16 @@ def add_responses(bot: MitchBot):
 
     bot.register_responder(MessageResponder(untamed_words, react_negatively))
 
-    @bot.slash_command()
+    @bot.slash_command(description="Puzzle hints or life advice, depending on the channel")
     async def obtain_hint(context: ApplicationCommandInteraction):
-        "Puzzle hints or life advice, depending on the channel"
         if context.channel_id in bot.hint_functions:
             await bot.hint_functions[context.channel_id](context)
         else:
             await context.response.send_message(get_random_strategy())
+    
+    @bot.slash_command(description="am helpful")
+    async def convert_100_miles_to_kilometers(context: ApplicationCommandInteraction
+        ):
+        await context.response.send_message("100 miles is 160.9344 kilometers.")
+
     bot._schedule_app_command_preparation()
