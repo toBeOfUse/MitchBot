@@ -255,36 +255,80 @@ def add_responses(bot: MitchBot):
     ):
       await ctx.response.send_message(nicknames_by_count(count), ephemeral=True)
 
-    async def add_emoji(message: discord.Message):
+    async def _process_emoji(emoji_image: discord.Attachment):
+        emoji_file = BytesIO()
+        await emoji_image.save(emoji_file, seek_begin=True)
+        # resize image so that the largest dimension is 128 pixels to help with
+        # file size
+        emoji_image = Image.open(emoji_file, formats=["jpeg", "png", "gif"])
+        largest_dimension = max(emoji_image.width, emoji_image.height)
+        scale_factor = 128/largest_dimension
+        emoji_image = emoji_image.resize(
+            (round(emoji_image.width * scale_factor), round(emoji_image.height * scale_factor)),
+            resample=Image.LANCZOS)
+        resized_file = BytesIO()
+        emoji_image.save(resized_file, format="png")
+        resized_file.seek(0)
+        resized_file = resized_file.read()
+        return resized_file
+    
+    async def add_emoji_message(message: discord.Message):
         emoji_name_match = re.search("make (.*) emoji", message.content)
         if (emoji_name_match and
             len(emoji_name_match.group(1).strip()) and
                 len(message.attachments) > 0):
             emoji_name = emoji_name_match.group(1).strip().strip('"\'')
-            emoji_file = BytesIO()
-            await message.attachments[0].save(emoji_file, seek_begin=True)
-            # resize image so that the largest dimension is 128 pixels to help with
-            # file size
-            emoji_image = Image.open(emoji_file, formats=["jpeg", "png", "gif"])
-            largest_dimension = max(emoji_image.width, emoji_image.height)
-            scale_factor = 128/largest_dimension
-            emoji_image = emoji_image.resize(
-                (round(emoji_image.width * scale_factor), round(emoji_image.height * scale_factor)),
-                resample=Image.LANCZOS)
-            resized_file = BytesIO()
-            emoji_image.save(resized_file, format="png")
-            resized_file.seek(0)
-            resized_file = resized_file.read()
+            emoji_file = await _process_emoji(message.attachments[0])
             try:
-                created_emoji = await message.guild.create_custom_emoji(name=emoji_name, image=resized_file)
+                created_emoji = await message.guild.create_custom_emoji(name=emoji_name, image=emoji_file)
                 await message.channel.send("Done "+str(created_emoji))
             except Exception as e:
                 print(e)
                 traceback.print_exc()
-                await message.channel.send("I couldn't :( the file was possibly too big or Discord is just fucking up")
+                await message.channel.send(
+                    "I couldn't :( the file was possibly too big or Discord is"
+                    " just fucking up"
+                )
         else:
-            await message.channel.send("To make emoji, send something like \"make great_auk emoji\" and attach an image file with it")
-    bot.register_responder(MessageResponder("make .* emoji", add_emoji, require_mention=True))
+            await message.channel.send(
+                "To make emoji, send something like \"make great_auk emoji\" "
+                "and attach an image file with it"
+            )
+
+    bot.register_responder(
+        MessageResponder(
+            "make .* emoji",
+            add_emoji_message,
+            require_mention=True
+        )
+    )
+
+    @bot.slash_command(description="add a fun emoji")
+    async def add_emoji(
+        ctx: ApplicationCommandInteraction,
+        file: discord.Attachment,
+        name: str,
+    ):
+        emoji_file = await _process_emoji(file)
+        if not (2 <= len(name) <= 32):
+            await ctx.response.send_message(
+                "emoji names must be between 2 and 32 characters long",
+                ephemeral=True
+            )
+        else:
+            try:
+                created_emoji = await ctx.guild.create_custom_emoji(
+                    name=name, image=emoji_file
+                )
+                await ctx.response.send_message(str(created_emoji))
+            except Exception as e:
+                print(e)
+                traceback.print_exc()
+                await ctx.response.send_message(
+                    "I couldn't :( the file was possibly too big or Discord is "
+                    "just fucking up"
+                )
+
 
     with open("text/untamed.txt") as untamed_words_file:
         untamed_word_list = untamed_words_file.read()
