@@ -8,6 +8,7 @@ from datetime import datetime
 
 DROPDOWN_ID = "movie dropdown"
 SUGGEST_BUTTON_ID = "suggest a movie"
+WITHDRAW_BUTTON_ID = "withdraw a movie"
 ABSTENTION = "Abstain from vote 👐"
 
 db = pw.SqliteDatabase('db/polls.db')
@@ -68,9 +69,6 @@ class SuggestModal(discord.ui.Modal):
         
     async def callback(self, action: discord.ModalInteraction):
         added_movie = list(action.text_values.values())[0]
-        if len(added_movie.strip()) == 0:
-            await action.response.send_message("not valid", ephemeral=True)
-            return
         original_message_id = action.message.id
         poll: Poll = Poll.get(Poll.message_id == original_message_id)
         try:
@@ -78,27 +76,56 @@ class SuggestModal(discord.ui.Modal):
                 added_by_id=action.author.id, 
                 name=added_movie, 
                 in_poll=original_message_id).save()
-        except: pass
+        except: pass  # if movie with that name is already there, do nothing
         await action.response.edit_message(
             content=poll_model_to_vote_count(poll),
-            view=poll_model_to_view(poll))
+            components=poll_model_to_view(poll))
 
-def poll_model_to_view(poll: Optional[Poll]=None) -> discord.ui.View:
-    options = [x.name for x in poll.options] if poll != None else []
-    view = discord.ui.View(timeout=None)
-    view.add_item(
-        discord.ui.Select(
-            custom_id=DROPDOWN_ID,
-            options = options+[ABSTENTION]
+class WithdrawModal(discord.ui.Modal):
+    def __init__(self, movies: list[str]):
+        super().__init__(
+            title="Withdraw a movie from contention",
+            custom_id="withdraw modal.",
+            components=[
+                discord.ui.Select(placeholder="😔", options=movies)
+            ]
         )
-    )
-    view.add_item(
+    
+    async def callback(self, action: discord.ModalInteraction):
+        withdrawing_movie = list(action.text_values.values())[0]
+        original_message_id = action.message.id
+        try:
+            Vote.delete().where(
+                Vote.in_poll == original_message_id and
+                    Vote.what_for == withdrawing_movie
+            )
+            MovieOption.get(
+                MovieOption.name == withdrawing_movie and
+                    MovieOption.in_poll == original_message_id
+            ).delete_instance()
+        except pw.DoesNotExist: pass
+
+
+def poll_model_to_view(poll: Optional[Poll]=None) -> list[discord.ui.WrappedComponent]:
+    options = [x.name for x in poll.options] if poll != None else []
+    button_row = discord.ui.ActionRow()
+    button_row.append_item(
         discord.ui.Button(
             label="Suggest a Film",
             custom_id=SUGGEST_BUTTON_ID
         )
     )
-    return view
+    button_row.append_item(
+        discord.ui.Button(
+            label="Withdraw a Film",
+            custom_id=WITHDRAW_BUTTON_ID
+        )
+    )
+    return [
+        discord.ui.Select(
+            custom_id=DROPDOWN_ID,
+            options = options+[ABSTENTION]
+        ), button_row]
 
 def poll_model_to_vote_count(poll: Poll) -> str:
     movie_votes = defaultdict(lambda: 0)
@@ -120,6 +147,31 @@ def add_poll_functionality(bot: Bot):
     async def add_button_callback(action: discord.MessageInteraction):
         if action.component.custom_id == SUGGEST_BUTTON_ID:
             await action.response.send_modal(SuggestModal())
+        elif action.component.custom_id == WITHDRAW_BUTTON_ID:
+            if action.author == action.guild.owner:
+                allowed_options = MovieOption.select().where(
+                    MovieOption.in_poll == action.message.id
+                )
+                if len(allowed_options) == 0:
+                    await action.response.send_message(
+                        "There are no movies to withdraw.",
+                        ephemeral=True
+                    )              
+                    return  
+            else:
+                allowed_options = MovieOption.select().where(
+                    MovieOption.in_poll == action.message.id and
+                        MovieOption.added_by_id == action.author.id
+                )
+                if len(allowed_options) == 0:
+                    await action.response.send_message(
+                        "You have submitted no movies to withdraw.",
+                        ephemeral=True
+                    )
+                    return
+            await action.response.send_modal(
+                WithdrawModal([x.name for x in allowed_options])
+            )
         else:
             await action.response.defer()
 
@@ -152,9 +204,9 @@ def add_poll_functionality(bot: Bot):
             ).save()
         await action.response.edit_message(
             content=poll_model_to_vote_count(poll),
-            view=poll_model_to_view(poll))
+            components=poll_model_to_view(poll))
 
     @bot.slash_command(description="Suggestion box and voting system.")
     async def movie_poll(context: ApplicationCommandInteraction):
-        await context.response.send_message(view=poll_model_to_view())
+        await context.response.send_message(components=poll_model_to_view())
         Poll.create(message_id=(await context.original_message()).id)
