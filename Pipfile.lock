@@ -138,7 +138,7 @@
         },
         "bee-engine": {
             "git": "https://github.com/tobeofuse/bee-engine",
-            "ref": "236c82c843fe8cc7ef70eb243edc7a3188c634a2"
+            "ref": "ac9204dafbb7e627ca7a90050b5aaaec16843284"
         },
         "brotli": {
             "hashes": [
@@ -515,11 +515,11 @@
         },
         "inflect": {
             "hashes": [
-                "sha256:967d6db69932bac9f1977b8f2dd131a59147f4b56134cfc74a3f44e5adb65223",
-                "sha256:a0612e7bba1028bb7efa121bf8f012aeda9355252d01b257057fa2a8f5859cef"
+                "sha256:aadc7ed73928f5e014129794bbac03058cca35d0a973a5fc4eb45c7fa26005f9",
+                "sha256:b45d91a4a28a4e617ff1821117439b06eaa86e2a4573154af0149e9be6687238"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==5.6.0"
+            "version": "==5.6.2"
         },
         "llvmlite": {
             "hashes": [
@@ -759,10 +759,10 @@
         },
         "peewee": {
             "hashes": [
-                "sha256:48eac70be812ac84daa5400fb8e7b545e0c83adcfa05c8e2a8612f9ced4da495"
+                "sha256:6d5db3babc33819ac326f1550e5a39677f4584094c567a7b88cc6bf7bcdcb687"
             ],
             "index": "pypi",
-            "version": "==3.15.0"
+            "version": "==3.15.1"
         },
         "pillow": {
             "hashes": [
@@ -873,11 +873,11 @@
         },
         "setuptools": {
             "hashes": [
-                "sha256:16923d366ced322712c71ccb97164d07472abeecd13f3a6c283f6d5d26722793",
-                "sha256:db3b8e2f922b2a910a29804776c643ea609badb6a32c4bcc226fd4fd902cce65"
+                "sha256:0d33c374d41c7863419fc8f6c10bfe25b7b498aa34164d135c622e52580c6b16",
+                "sha256:c04b44a57a6265fe34a4a444e965884716d34bae963119a76353434d6f18e450"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==63.1.0"
+            "version": "==63.2.0"
         },
         "soupsieve": {
             "hashes": [
@@ -892,11 +892,11 @@
                 "numba"
             ],
             "hashes": [
-                "sha256:0471463083b5fef7a656c7e31a7376fa1941bf6a41a0750c6e0ca151e43646e7",
-                "sha256:2e8e958814f21fa809b16e98bd2f99082b69a0f88b864a4a1f2944d5a7e61827"
+                "sha256:62bc28ab89b9159bbd195c4512eaaceeacb7daaf714354b0fe2aea59b1245a0d",
+                "sha256:bc79b8eee051209af43da7b0725e5030fdc324c9bd1580a4598c94578d2683c9"
             ],
             "index": "pypi",
-            "version": "==6.0.1"
+            "version": "==6.0.2"
         },
         "tinycss2": {
             "hashes": [
