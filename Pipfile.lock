@@ -138,7 +138,7 @@
         },
         "bee-engine": {
             "git": "https://github.com/tobeofuse/bee-engine",
-            "ref": "ac9204dafbb7e627ca7a90050b5aaaec16843284"
+            "ref": "2b67526a2e3887667ed05c676f5af38cff62ee8c"
         },
         "brotli": {
             "hashes": [
@@ -754,7 +754,7 @@
                 "sha256:f3eb268dbd5cfaffd9448113539e44e2dd1c5ca9ce25576f7c04a5453edc26fa",
                 "sha256:fb7a980c81dd932381f8228a426df8aeb70d59bbcda2af075b627bbc50207cba"
             ],
-            "markers": "python_version >= '3.8'",
+            "markers": "python_full_version >= '3.8.0'",
             "version": "==1.22.4"
         },
         "peewee": {
