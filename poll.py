@@ -72,7 +72,7 @@ class SuggestModal(discord.ui.Modal):
             await action.response.send_message("not valid", ephemeral=True)
             return
         original_message_id = action.message.id
-        poll: Poll = Poll.get(Poll.message_id == original_message_id)
+        poll: Poll = Poll.get_or_create(message_id=original_message_id)[0]
         try:
             MovieOption.create(
                 added_by_id=action.author.id, 
@@ -130,7 +130,7 @@ def add_poll_functionality(bot: Bot):
             return
         message = action.message
         poll_id = message.id
-        poll = Poll.get_by_id(poll_id)
+        poll: Poll = Poll.get_or_create(message_id=poll_id)[0]
         try:
             Vote.get(
                 Vote.in_poll==poll_id and Vote.voter_id==action.author.id
@@ -157,4 +157,3 @@ def add_poll_functionality(bot: Bot):
     @bot.slash_command(description="Suggestion box and voting system.")
     async def movie_poll(context: ApplicationCommandInteraction):
         await context.response.send_message(view=poll_model_to_view())
-        Poll.create(message_id=(await context.original_message()).id)
