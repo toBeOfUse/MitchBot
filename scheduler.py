@@ -105,6 +105,8 @@ def schedule_tasks(client: MitchBot):
                 f"went {random.choice(sounds)}")
             body = "\n".join("> "+x for x in poem.split("\n"))
             embed = None
+            if datetime.now().isoformat().startswith("2022-10-19"):
+                body = "> what if there was a little..... what am i doing with my life. i can't do this anymore"
         else:
             prelude += "Tonight's item from the audience reads:"
             if get_next_mail(False) is None:
