@@ -65,7 +65,7 @@ def schedule_tasks(client: MitchBot):
         await target_thread.join()
         await target_thread.send(f"Wordle {wordle_number} 1/6\n\n🟩🟩🟩🟩🟩")
     wordle_time = time(hour=0, minute=0, second=5, tzinfo=et)
-    asyncio.create_task(repeatedly_schedule_task_for(wordle_time, wordle_joke))
+    # asyncio.create_task(repeatedly_schedule_task_for(wordle_time, wordle_joke))
 
     # poetry scheduling:
     poem_time = time(hour=2, tzinfo=et)
