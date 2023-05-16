@@ -337,7 +337,11 @@ def add_responses(bot: MitchBot):
             for x in re.findall(r"(?:\"[^\"]+?\")|(?:\b(?:\w|-)+?\b)", untamed_word_list)]
 
     async def react_negatively(message: discord.Message):
-        await message.add_reaction(random.choice(["🚫", "❌", "🛑", "🙅", "👎"]))
+        today = datetime.date.today()
+        if today.month == 4 and today.day == 1:  # april fool's day
+            await message.add_reaction(random.choice(["🧡", "💖", "💝", "💟", "💗"]))
+        else:
+            await message.add_reaction(random.choice(["🚫", "❌", "🛑", "🙅", "👎"]))
 
     bot.register_responder(MessageResponder(untamed_words, react_negatively))
 
