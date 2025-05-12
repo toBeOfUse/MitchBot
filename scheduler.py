@@ -6,6 +6,7 @@ import random
 from typing import Callable, TYPE_CHECKING
 
 import disnake as discord
+
 if TYPE_CHECKING:
     from MitchBot import MitchBot
 
@@ -19,7 +20,9 @@ et = ZoneInfo("America/New_York")
 async def do_thing_after(seconds: float, thing: Callable, name: str = ""):
     """Utility function to call a function or create a task for a coroutine in a
     certain number of seconds"""
-    print("scheduling next", (name or thing.__name__), "for", seconds, "seconds from now")
+    print(
+        "scheduling next", (name or thing.__name__), "for", seconds, "seconds from now"
+    )
     await asyncio.sleep(seconds)
     if inspect.iscoroutinefunction(thing):
         asyncio.create_task(thing())
@@ -34,15 +37,19 @@ def get_seconds_before_next(time_of_day: time) -> float:
     day occurs."""
     now = datetime.now(tz=timezone.utc).astimezone(time_of_day.tzinfo)
     if now.time() >= time_of_day:
-        next_puzzle_day = now.date()+timedelta(days=1)
+        next_puzzle_day = now.date() + timedelta(days=1)
     else:
         next_puzzle_day = now.date()
-    next_puzzle_time = datetime.combine(next_puzzle_day, time_of_day).astimezone(time_of_day.tzinfo)
+    next_puzzle_time = datetime.combine(next_puzzle_day, time_of_day).astimezone(
+        time_of_day.tzinfo
+    )
     result = (next_puzzle_time - now).total_seconds()
     return result
 
 
-async def repeatedly_schedule_task_for(time_of_day: time, task: Callable, name: str = "") -> None:
+async def repeatedly_schedule_task_for(
+    time_of_day: time, task: Callable, name: str = ""
+) -> None:
     """
     Schedules a task (a function or coroutine) to be performed every day at
     time_of_day in UTC.
@@ -64,13 +71,14 @@ def schedule_tasks(client: MitchBot):
         target_thread = next(x for x in available_threads if x.id == wordle_thread_id)
         await target_thread.join()
         await target_thread.send(f"Wordle {wordle_number} 1/6\n\n🟩🟩🟩🟩🟩")
+
     wordle_time = time(hour=0, minute=0, second=5, tzinfo=et)
     # asyncio.create_task(repeatedly_schedule_task_for(wordle_time, wordle_joke))
 
     # poetry scheduling:
     poem_time = time(hour=2, tzinfo=et)
-    if client.test_mode and False:
-        poem_time = (datetime.now(tz=et)+timedelta(seconds=5)).time()  # test
+    if client.test_mode:
+        poem_time = (datetime.now(tz=et) + timedelta(seconds=5)).time()  # test
 
     async def send_poem():
         poetry_channel_id = (
@@ -80,53 +88,145 @@ def schedule_tasks(client: MitchBot):
         a_city, a_zone = get_random_city_timezone()
         a_time = datetime.now().astimezone(ZoneInfo(a_zone))
         a_body = random.choice(
-            ["Mercury", "Venus", "Mars", "Earth", "Jupiter", "Saturn", "Neptune", "Pluto",
-             "Cassiopeia", "Ceres", "Charon", "Ganymede", "The ISS", "Alpha Centauri",
-             "The Sombrero Galaxy", "The Tadpole Galaxy", "Hoag's Object"])
+            [
+                "Mercury",
+                "Venus",
+                "Mars",
+                "Earth",
+                "Jupiter",
+                "Saturn",
+                "Neptune",
+                "Pluto",
+                "Cassiopeia",
+                "Ceres",
+                "Charon",
+                "Ganymede",
+                "The ISS",
+                "Alpha Centauri",
+                "The Sombrero Galaxy",
+                "The Tadpole Galaxy",
+                "Hoag's Object",
+            ]
+        )
         a_state = random.choice(
-            ["retrograde", "intrograde", "astrograde", "interrograde", "terragrade",
-             "fluxigrade", "axigrade", "centigrade", "tardigrade", "upgrade",
-             "demigrade", "distastigrade", "deltagrade", "orthograde", "fermigrade",
-             "esograde", "altigrade", "bizarrograde", "essentiagrade"])
-        prelude = ("Good evening. " +
-                   f"It's {int(a_time.strftime('%I'))}:{a_time.strftime('%M %p')} " +
-                   f"in {a_city}. {a_body} is in {a_state}. ")
-        if next_mail is None:
-            prelude += "Tonight's top story is:"
-            animals = ["cat", "dog", "alligator", "ostrich", "llama", "bunny", "bird",
-                "cow", "horsie", "penguin", "frog", "chinchilla", "meerkat", "snake",
-                "duck", "catboy", "raccoon", "gila monster", "komodo dragon", "unicorn"]
-            sounds = ["mew", "[REDACTED]", "oink", "boing", "pew pew pew", "brrring",
-                "boom", "\"hey guys what's up\"", "hiss", "snort", "grrr", "bzzz",
-                "squeak", "purr", "cock-a-doodle-doo", "chirp", "clang", "hee-haw",
-                "FNRNRNRNRNRNNNRNRNR (elephant noise)", "honk", "neigh", "hah-hah-hah",
-                "coo", "waf", "yap", "awooo", "baa", "quack"]
-            poem = (f"what if there was a little {random.choice(animals)} that " +
-                f"went {random.choice(sounds)}")
-            body = "\n".join("> "+x for x in poem.split("\n"))
-            embed = None
-            if datetime.now().isoformat().startswith("2022-10-19"):
-                body = "> what if there was a little..... what am i doing with my life. i can't do this anymore"
-        else:
-            prelude += "Tonight's item from the audience reads:"
-            if get_next_mail(False) is None:
-                body = "And that's the last piece of mail we've gotten so far."
-            else:
-                body = ""
-            embed = discord.Embed(url="https://mitchbot.cloud/mail/", description=next_mail)
-            embed.set_thumbnail(url="https://mitchbot.cloud/mail/otherimages/stampthumbnail.png")
-            embed.set_author(
-                name="Send us a postcard ✨", url="https://mitchbot.cloud/mail/",
-                icon_url="https://mitchbot.cloud/mail/otherimages/cursor.png"
-            )
+            [
+                "retrograde",
+                "intrograde",
+                "astrograde",
+                "interrograde",
+                "terragrade",
+                "fluxigrade",
+                "axigrade",
+                "centigrade",
+                "tardigrade",
+                "upgrade",
+                "demigrade",
+                "distastigrade",
+                "deltagrade",
+                "orthograde",
+                "fermigrade",
+                "esograde",
+                "altigrade",
+                "bizarrograde",
+                "essentiagrade",
+            ]
+        )
+        prelude = (
+            "Good evening. "
+            + f"It's {int(a_time.strftime('%I'))}:{a_time.strftime('%M %p')} "
+            + f"in {a_city}. {a_body} is in {a_state}. "
+        )
+
+        prelude += "Tonight's top story is:"
+        # original from 2022:
+        animals = [
+            "cat",
+            "dog",
+            "alligator",
+            "ostrich",
+            "llama",
+            "bunny",
+            "bird",
+            "cow",
+            "horsie",
+            "penguin",
+            "frog",
+            "chinchilla",
+            "meerkat",
+            "snake",
+            "duck",
+            "catboy",
+            "raccoon",
+            "gila monster",
+            "komodo dragon",
+            "unicorn",
+            # new:
+            "band on the run",
+            "pteradon",
+            "mere cat",
+            "boomerang",
+            "higgs boson",
+            "tropical depression",
+            "narwhal",
+            "seal",
+            "nightmare",
+            "ostrich",
+            "Wicked Witch of the West",
+            "disaster bisexual",
+            "strange loop",
+        ]
+
+        sounds = [
+            # original:
+            "mew",
+            "[REDACTED]",
+            "oink",
+            "boing",
+            "pew pew pew",
+            "brrring",
+            "boom",
+            '"hey guys what\'s up"',
+            "hiss",
+            "snort",
+            "grrr",
+            "bzzz",
+            "squeak",
+            "purr",
+            "cock-a-doodle-doo",
+            "chirp",
+            "clang",
+            "hee-haw",
+            "FNRNRNRNRNRNNNRNRNR (elephant noise)",
+            "honk",
+            "neigh",
+            "hah-hah-hah",
+            "coo",
+            "waf",
+            "yap",
+            "awooo",
+            "baa",
+            "quack"
+            # new:
+            "E-I-E-I-O",
+        ]
+        poem = (
+            f"what if there was a little {random.choice(animals)} that "
+            + f"went {random.choice(sounds)}"
+        )
+        body = "\n".join("> " + x for x in poem.split("\n"))
+        embed = None
+        if datetime.now().isoformat().startswith("2022-10-19"):
+            body = "> what if there was a little..... what am i doing with my life. i can't do this anymore"
         await client.get_channel(poetry_channel_id).send(prelude, embed=embed)
         if body:
             await client.get_channel(poetry_channel_id).send(body)
+
     asyncio.create_task(repeatedly_schedule_task_for(poem_time, send_poem))
 
 
 async def test():
     pass  # ???
+
 
 if __name__ == "__main__":
     asyncio.run(test())
