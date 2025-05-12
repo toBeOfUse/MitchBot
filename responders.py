@@ -114,16 +114,16 @@ def add_responses(bot: MitchBot):
         )
     )
 
-    async def fuck_response(message):
-        fuck = await message.channel.send("Fuck you 🤬")
-        await asyncio.sleep(3)
-        await fuck.edit(content='Love you guys')
-    bot.register_responder(
-        MessageResponder(
-            r"fuck (you|u)",
-            fuck_response
-        )
-    )
+    # async def fuck_response(message):
+    #     fuck = await message.channel.send("Fuck you 🤬")
+    #     await asyncio.sleep(3)
+    #     await fuck.edit(content='Love you guys')
+    # bot.register_responder(
+    #     MessageResponder(
+    #         r"fuck (you|u)",
+    #         fuck_response
+    #     )
+    # )
 
     async def _fight(fighters: list[discord.User]) -> BytesIO:
         i1 = await bot.get_avatar_small(fighters[0], 180)
@@ -210,19 +210,19 @@ def add_responses(bot: MitchBot):
             )
         )
 
-    async def day_of_week(message: discord.Message):
-        now = datetime.date.today()
-        days = ["Monday", "Tuesday", "Wednesday",
-                "Thursday", "Friday", "Saturday", "Sunday"]
-        wrong_days = days[0:now.weekday()] + days[now.weekday()+1:]
-        random.shuffle(wrong_days)
-        message = await message.reply("um " + wrong_days[0])
-        await asyncio.sleep(0.5)
-        for d in wrong_days[1:] + ["um", "oh god uh", "\*sweats*"]:
-            await message.edit(content=d)
-            await asyncio.sleep(0.5)
-        await message.edit(content=days[now.weekday()])
-    bot.register_responder(MessageResponder(r"\bwhat\b.*\bday\b|\bday of the week\b", day_of_week))
+    # async def day_of_week(message: discord.Message):
+    #     now = datetime.date.today()
+    #     days = ["Monday", "Tuesday", "Wednesday",
+    #             "Thursday", "Friday", "Saturday", "Sunday"]
+    #     wrong_days = days[0:now.weekday()] + days[now.weekday()+1:]
+    #     random.shuffle(wrong_days)
+    #     message = await message.reply("um " + wrong_days[0])
+    #     await asyncio.sleep(0.5)
+    #     for d in wrong_days[1:] + ["um", "oh god uh", "\*sweats*"]:
+    #         await message.edit(content=d)
+    #         await asyncio.sleep(0.5)
+    #     await message.edit(content=days[now.weekday()])
+    # bot.register_responder(MessageResponder(r"\bwhat\b.*\bday\b|\bday of the week\b", day_of_week))
 
     def nicknames_by_count(count: int):
         nicknames = [get_random_nickname() for _ in range(0, count)]
