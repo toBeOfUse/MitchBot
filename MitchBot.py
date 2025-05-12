@@ -17,6 +17,7 @@ from poll import add_poll_functionality
 from responders import add_responses, MessageResponder
 from scheduler import schedule_tasks
 from spellingbee import add_bee_functionality
+
 # from letterboxed import add_letterboxed_functionality
 
 
@@ -25,7 +26,7 @@ class MitchBot(commands.Bot):
         intents = discord.Intents.default()
         intents.messages = True
         intents.message_content = True
-        super().__init__(intents=intents, prefix="", sync_commands=True)
+        super().__init__(intents=intents, sync_commands=True)
         self.last_disconnect: float = 0
         # set in on_ready:
         self.responses: list[MessageResponder] = []
@@ -36,21 +37,21 @@ class MitchBot(commands.Bot):
         # command
         self.hint_functions: dict[int, Coroutine[ApplicationCommandInteraction]] = {}
 
-    def register_hint(self, channel_id: int, function: Coroutine[ApplicationCommandInteraction]):
+    def register_hint(
+        self, channel_id: int, function: Coroutine[ApplicationCommandInteraction]
+    ):
         self.hint_functions[channel_id] = function
 
     @classmethod
     async def get_avatar_small(cls, user: discord.User, final_size: int):
-        ceil_size = 2**(math.ceil(math.log(final_size, 2)))
+        ceil_size = 2 ** (math.ceil(math.log(final_size, 2)))
         ceil_size_avatar = user.display_avatar.replace(size=ceil_size, format="png")
-        return Image.open(
-            BytesIO(await ceil_size_avatar.read())
-        ).resize(
+        return Image.open(BytesIO(await ceil_size_avatar.read())).resize(
             (final_size, final_size), Image.LANCZOS
         )
 
     async def on_ready(self):
-        print(f'Logged on as {self.user}!')
+        print(f"Logged on as {self.user}!")
         for guild in self.guilds:
             await guild.me.edit(nick="Servers Georg")
         self.test_mode = self.user.name == "MitchBotTest"
@@ -70,17 +71,14 @@ class MitchBot(commands.Bot):
 
     def slash_command(self, *args, **kwargs):
         return super().slash_command(
-            *args, 
-            **kwargs, 
-            guild_ids=self.command_guild_ids, 
-            auto_sync=True
+            *args, **kwargs, guild_ids=self.command_guild_ids, auto_sync=True
         )
 
     def register_responder(self, responder: MessageResponder):
         self.responses.append(responder)
 
     async def on_message(self, message: discord.Message):
-        print(f'Message from {message.author}: {message.content}')
+        print(f"Message from {message.author}: {message.content}")
         if message.author == self.user:
             return
 
@@ -91,16 +89,24 @@ class MitchBot(commands.Bot):
 
         if not responded and MessageResponder.mentions_bot(message):
             response = random.choice(
-                ["Completely correct", "I'm afraid not", "I'm not too sure",
-                 "No-one has said that before", "Only on Tuesdays",
-                 "Seize the means of production"])
-            await message.reply(response + ", "+message.author.display_name+".")
+                [
+                    "Completely correct",
+                    "I'm afraid not",
+                    "I'm not too sure",
+                    "No-one has said that before",
+                    "Only on Tuesdays",
+                    "Seize the means of production",
+                ]
+            )
+            await message.reply(response + ", " + message.author.display_name + ".")
 
     async def on_disconnect(self):
         self.last_disconnect = datetime.now().timestamp()
         print(f"disconnected :( {datetime.now().isoformat()}")
-    
+
     async def on_connect(self):
         print(f"connected {datetime.now().isoformat()}")
         if self.last_disconnect != 0:
-            print(f"had been gone for {datetime.now().timestamp()-self.last_disconnect} seconds")
+            print(
+                f"had been gone for {datetime.now().timestamp()-self.last_disconnect} seconds"
+            )
