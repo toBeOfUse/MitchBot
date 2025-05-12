@@ -6,12 +6,11 @@ MitchBot provides various fun responses to messages as well as posting predictio
 
 ### Normal Python Package Dependencies:
 
-MitchBot's Python dependencies are managed by pipenv. Install pipenv and run `pipenv install` to set them up and then `pipenv shell` to enter the resulting Python virtual environment.
+MitchBot's Python dependencies are managed by uv. Install uv and run `uv sync` to set them up and then run stuff with `uv run` to use the resulting Python virtual environment.
 
 ### Non-Python dependencies
 
 - **Cairo**: MitchBot uses the CairoSVG Python package to render some of the daily puzzles, and the CairoSVG Python package depends on the Cairo library. On Linux, Cairo is probably already installed, or you can get it from a package manager; on Windows, the easiest way to get Cairo is unfortunately to install the SVG editor Inkscape and then add C:/Program Files/Inkscape/ to your system PATH.
-- **Blender**: MitchBot also uses Blender to render some puzzle templates. Blender is freely obtainable through blender.org.
 - **Fonts**: MitchBot's puzzle templates use the fonts Liberation Sans, Mario 256, Kingthings Exeter, fs Tahoma 8px, Minecraft Font by JDGraphics, and Arial. These fonts are available for free on the Internet. If they are not installed on your system, some random fallback font will probably be used.
 
 ### Dependencies for Features That Aren't Currently Maintained:
@@ -25,11 +24,9 @@ MitchBot automatically responds to messages that include the following (case-ins
 
 - bot/MitchBot/robot
 - good night/goodnight
-- fuck you
 - flip (a) coin
 - magic (8/eight) ball
 - make (...) fight (with 2 @mentions in there somewhere)
-- what (...) day / day of the week
 
 MitchBot responds to the following commands if you @-mention it:
 

@@ -1,0 +1,30 @@
+[project]
+name = ""
+version = "0.0.1"
+requires-python = "~=3.10"
+dependencies = [
+    "pillow",
+    "cairosvg",
+    "cython",
+    "tzdata",
+    "timezonefinder[numba]",
+    "beautifulsoup4",
+    "lxml",
+    "bee-engine",
+    "aiohttp",
+    "disnake",
+    "peewee",
+]
+
+[dependency-groups]
+dev = ["autopep8"]
+
+[tool.uv]
+package = false
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+
+[tool.uv.sources]
+bee-engine = { git = "https://github.com/tobeofuse/bee-engine" }
