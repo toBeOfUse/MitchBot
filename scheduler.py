@@ -164,6 +164,11 @@ def schedule_tasks(client: MitchBot):
             "band on the run",
             "pteradon",
             "mere cat",
+            "Sweet Caroline",
+            "Santa Claus",
+            "beast",
+            "pop star",
+            "venus flytrap",
             "boomerang",
             "higgs boson",
             "tropical depression",
@@ -172,42 +177,56 @@ def schedule_tasks(client: MitchBot):
             "nightmare",
             "ostrich",
             "Wicked Witch of the West",
-            "disaster bisexual",
+            "disaster bi",
             "strange loop",
+            "Toronto Maple Leafs fan",
+            "Tim Curry",
+            "Gene Simmons",
+            "bot",
+            "Saturn Devouring his Son",
         ]
 
         sounds = [
             # original:
             "mew",
-            "[REDACTED]",
-            "oink",
-            "boing",
-            "pew pew pew",
+            # "[REDACTED]",
+            # "oink",
+            # "boing",
+            # "pew pew pew",
             "brrring",
             "boom",
             '"hey guys what\'s up"',
             "hiss",
-            "snort",
+            # "snort",
             "grrr",
-            "bzzz",
+            # "bzzz",
             "squeak",
             "purr",
-            "cock-a-doodle-doo",
-            "chirp",
-            "clang",
-            "hee-haw",
+            # "cock-a-doodle-doo",
+            # "chirp",
+            # "clang",
+            # "hee-haw",
             "FNRNRNRNRNRNNNRNRNR (elephant noise)",
             "honk",
-            "neigh",
+            # "neigh",
             "hah-hah-hah",
-            "coo",
-            "waf",
+            # "coo",
+            # "waf",
             "yap",
             "awooo",
             "baa",
             "quack"
             # new:
             "E-I-E-I-O",
+            "nyoom",
+            "death is but a door; time is a but a window. i'll be back",
+            "🥺",
+            "And as for my gambling, it's true I lost it all a few times. But that's because I always took the long shot and it never came in. But I still have some time before I cross that river. And if you're at the table and you're rolling them bones, then there's no money in play-ing it safe. You have to take all your chips and put them on double six and watch as every eye goes to you and then to those red dice doing their wild dance and freezing time before finding the cruel green felt.\n\nI've been lucky.",
+            "switch it up like nintendo",
+            "mew! mew! mew! mew!",
+            "I am 30 or 40 years old and I do not need this",
+            '"It\'s 2am bitches"',
+            "Don't talk to me before I've had my ~GAMING~",
         ]
         poem = (
             f"what if there was a little {random.choice(animals)} that "
@@ -217,6 +236,10 @@ def schedule_tasks(client: MitchBot):
         embed = None
         if datetime.now().isoformat().startswith("2022-10-19"):
             body = "> what if there was a little..... what am i doing with my life. i can't do this anymore"
+        elif datetime.now().isoformat().startswith("2025-05-14"):
+            body = '> "It\'s 2 am bitches"'
+        elif datetime.now().isoformat().startswith("2025-05-15"):
+            body = "> And as for my gambling, it's true I lost it all a few times. But that's because I always took the long shot and it never came in. But I still have some time before I cross that river. And if you're at the table and you're rolling them bones, then there's no money in play-ing it safe. You have to take all your chips and put them on double six and watch as every eye goes to you and then to those red dice doing their wild dance and freezing time before finding the cruel green felt.\n\nI've been lucky."
         await client.get_channel(poetry_channel_id).send(prelude, embed=embed)
         if body:
             await client.get_channel(poetry_channel_id).send(body)
