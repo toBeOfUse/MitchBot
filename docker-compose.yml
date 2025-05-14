@@ -1,0 +1,9 @@
+version: "3"
+services:
+  app:
+    environment:
+      TZ: America/New_York
+    build: .
+    volumes:
+     - ./db:/app/db
+    network_mode: 'host'
