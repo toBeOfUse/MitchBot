@@ -21,12 +21,14 @@ from spellingbee import add_bee_functionality
 # from letterboxed import add_letterboxed_functionality
 
 
-class MitchBot(commands.Bot):
+class MitchBot(commands.InteractionBot):
     def __init__(self):
         intents = discord.Intents.default()
         intents.messages = True
         intents.message_content = True
-        super().__init__(intents=intents, sync_commands=True)
+        super().__init__(
+            intents=intents, command_sync_flags=commands.CommandSyncFlags.all()
+        )
         self.last_disconnect: float = 0
         # set in on_ready:
         self.responses: list[MessageResponder] = []
@@ -54,7 +56,7 @@ class MitchBot(commands.Bot):
         print(f"Logged on as {self.user}!")
         for guild in self.guilds:
             await guild.me.edit(nick="Servers Georg")
-        self.test_mode = self.user.name == "MitchBotTest"
+        self.test_mode = self.user.name.startswith("MitchBotTest")
         self.command_guild_ids = (
             [708955889276551198] if self.test_mode else [678337806510063626]
         )
