@@ -221,7 +221,7 @@ def schedule_tasks(client: MitchBot):
             "nyoom",
             "death is but a door; time is a but a window. i'll be back",
             "🥺",
-            "And as for my gambling, it's true I lost it all a few times. But that's because I always took the long shot and it never came in. But I still have some time before I cross that river. And if you're at the table and you're rolling them bones, then there's no money in play-ing it safe. You have to take all your chips and put them on double six and watch as every eye goes to you and then to those red dice doing their wild dance and freezing time before finding the cruel green felt.\n\nI've been lucky.",
+            "And as for my gambling, it's true I lost it all a few times. But that's because I always took the long shot and it never came in. But I still have some time before I cross that river. And if you're at the table and you're rolling them bones, then there's no money in playing it safe. You have to take all your chips and put them on double six and watch as every eye goes to you and then to those red dice doing their wild dance and freezing time before finding the cruel green felt.\n\nI've been lucky.",
             "switch it up like nintendo",
             "mew! mew! mew! mew!",
             "I am 30 or 40 years old and I do not need this",
@@ -239,7 +239,7 @@ def schedule_tasks(client: MitchBot):
         elif datetime.now().isoformat().startswith("2025-05-14"):
             body = '> "It\'s 2 am bitches"'
         elif datetime.now().isoformat().startswith("2025-05-15"):
-            body = "> And as for my gambling, it's true I lost it all a few times. But that's because I always took the long shot and it never came in. But I still have some time before I cross that river. And if you're at the table and you're rolling them bones, then there's no money in play-ing it safe. You have to take all your chips and put them on double six and watch as every eye goes to you and then to those red dice doing their wild dance and freezing time before finding the cruel green felt.\n\nI've been lucky."
+            body = "> And as for my gambling, it's true I lost it all a few times. But that's because I always took the long shot and it never came in. But I still have some time before I cross that river. And if you're at the table and you're rolling them bones, then there's no money in playing it safe. You have to take all your chips and put them on double six and watch as every eye goes to you and then to those red dice doing their wild dance and freezing time before finding the cruel green felt.\n\nI've been lucky."
         await client.get_channel(poetry_channel_id).send(prelude, embed=embed)
         if body:
             await client.get_channel(poetry_channel_id).send(body)
