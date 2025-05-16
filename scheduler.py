@@ -150,15 +150,15 @@ def schedule_tasks(client: MitchBot):
             "cow",
             "horsie",
             "penguin",
-            "frog",
-            "chinchilla",
+            # "frog",
+            # "chinchilla",
             "meerkat",
-            "snake",
-            "duck",
+            # "snake",
+            # "duck",
             "catboy",
             "raccoon",
             "gila monster",
-            "komodo dragon",
+            # "komodo dragon",
             "unicorn",
             # new:
             "band on the run",
@@ -184,6 +184,7 @@ def schedule_tasks(client: MitchBot):
             "Gene Simmons",
             "bot",
             "Saturn Devouring his Son",
+            "gambler",
         ]
 
         sounds = [
@@ -240,6 +241,8 @@ def schedule_tasks(client: MitchBot):
             body = '> "It\'s 2 am bitches"'
         elif datetime.now().isoformat().startswith("2025-05-15"):
             body = "> And as for my gambling, it's true I lost it all a few times. But that's because I always took the long shot and it never came in. But I still have some time before I cross that river. And if you're at the table and you're rolling them bones, then there's no money in playing it safe. You have to take all your chips and put them on double six and watch as every eye goes to you and then to those red dice doing their wild dance and freezing time before finding the cruel green felt.\n\nI've been lucky."
+        elif datetime.now().isoformat().startswith("2025-05-16"):
+            body = "> what if there was a little gambler that went boing"
         await client.get_channel(poetry_channel_id).send(prelude, embed=embed)
         if body:
             await client.get_channel(poetry_channel_id).send(body)
